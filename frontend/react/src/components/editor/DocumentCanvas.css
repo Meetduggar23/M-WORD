@@ -1,8 +1,8 @@
 .document-canvas-wrapper {
   flex: 1;
   overflow: auto;
-  background: var(--bg-canvas);
-  padding: 28px;
+  background: #e8e8e8;
+  padding: 24px;
   position: relative;
   transition: background-color var(--transition-normal);
 }

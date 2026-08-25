@@ -2,44 +2,47 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 32px;
+  height: 26px;
   padding: 0 var(--spacing-md);
-  background: var(--bg-primary);
-  border-top: 1px solid var(--border-subtle);
-  font-size: var(--font-size-xs);
+  background: #f3f3f3;
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
   color: var(--text-secondary);
   user-select: none;
-  box-shadow: 0 -1px 6px rgba(15, 23, 42, 0.04);
   position: relative;
   z-index: 55;
 }
 
-.status-left {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
+.status-left,
 .status-right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 6px;
+  min-width: 0;
 }
 
 .status-item {
   white-space: nowrap;
   font-weight: 500;
   letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .status-separator {
   color: var(--border-strong);
+  user-select: none;
 }
 
 .status-button {
-  padding: 4px var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  font-size: 11px;
   border-radius: var(--radius-sm);
+  color: var(--text-secondary);
 }
 
 .status-button:hover {
@@ -47,22 +50,62 @@
   color: var(--accent-color);
 }
 
-/* Zoom controls */
-.zoom-controls {
+.status-button.active-view {
+  color: var(--accent-color);
+}
+
+.status-view-modes {
   display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.zoom-value {
+  font-weight: 600;
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ---------- Save state ---------- */
+
+.save-state {
+  display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 
+.save-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.save-indicator.saved   { background: #16a34a; }
+.save-indicator.saving  { background: #d97706; animation: save-pulse 0.9s infinite ease-in-out; }
+.save-indicator.unsaved { background: var(--text-muted); }
+
+@keyframes save-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------- Zoom controls ---------- */
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .zoom-button {
-  width: 22px;
-  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-size-md);
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-sm);
   padding: 0;
+  color: var(--text-secondary);
 }
 
 .zoom-button:hover:not(:disabled) {
@@ -75,10 +118,59 @@
   cursor: not-allowed;
 }
 
+/* Slider */
+.zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 90px;
+  height: 3px;
+  padding: 0;
+  border: none;
+  border-radius: 99px;
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.zoom-slider:hover {
+  border: none;
+  box-shadow: none;
+}
+
+.zoom-slider:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow);
+}
+
+.zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 0 1px var(--accent-color);
+  transition: transform var(--transition-fast);
+}
+
+.zoom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.zoom-slider::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
 .zoom-select {
-  width: 62px;
-  height: 22px;
-  font-size: var(--font-size-xs);
+  width: 54px;
+  height: 20px;
+  font-size: 10.5px;
   padding: 0 3px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -91,4 +183,32 @@
 .zoom-select:hover {
   border-color: var(--border-color);
   background: var(--bg-primary);
+}
+
+.zoom-fit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.zoom-fit:hover {
+  background: var(--hover-color);
+  color: var(--accent-color);
+}
+
+@media (max-width: 820px) {
+  .status-hide-md,
+  .status-separator.status-hide-md {
+    display: none;
+  }
+
+  .zoom-slider {
+    width: 60px;
+  }
 }

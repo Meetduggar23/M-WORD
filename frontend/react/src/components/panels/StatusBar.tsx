@@ -1,81 +1,102 @@
 import React from 'react';
+import { ZoomIn, ZoomOut, Maximize2, FileText, Columns2, GalleryHorizontalEnd } from 'lucide-react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
+import { useUI, ZOOM_STEPS } from '../../store/uiStore';
+import { SaveStatus } from '../titlebar/TitleBar';
 import './StatusBar.css';
 
 interface StatusBarProps {
-  zoom: number;
-  onZoomChange: (zoom: number) => void;
-  onToggleNavigation: () => void;
+  saveStatus: SaveStatus;
+  currentPage: number;
+  pageCount: number;
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({ zoom, onZoomChange, onToggleNavigation }) => {
-  const { getWordCount, getCharacterCount, getLineCount, canUndo, canRedo } = useDocumentEngine();
-  const zoomLevels = [25, 50, 75, 100, 125, 150, 200, 300];
-
-  const handleZoomIn = () => {
-    const idx = zoomLevels.indexOf(zoom);
-    if (idx < zoomLevels.length - 1) onZoomChange(zoomLevels[idx + 1]);
-  };
-
-  const handleZoomOut = () => {
-    const idx = zoomLevels.indexOf(zoom);
-    if (idx > 0) onZoomChange(zoomLevels[idx - 1]);
-  };
+export const StatusBar: React.FC<StatusBarProps> = ({ currentPage, pageCount }) => {
+  const { getWordCount, getCharacterCount } = useDocumentEngine();
+  const { zoom, setZoom, zoomIn, zoomOut } = useUI();
 
   const words = getWordCount();
   const chars = getCharacterCount();
-  const lines = getLineCount();
+  const sliderIndex = ZOOM_STEPS.indexOf(zoom);
+  const effectiveIndex = sliderIndex >= 0 ? sliderIndex : nearestZoomIndex(zoom);
 
   return (
     <div className="status-bar">
       <div className="status-left">
-        <span className="status-item">
-          Page 1 of 1
-        </span>
+        <span className="status-item">Page {Math.min(currentPage, pageCount)} of {pageCount}</span>
         <span className="status-separator">|</span>
-        <span className="status-item">
-          Words: {words.toLocaleString()}
-        </span>
+        <span className="status-item">{words.toLocaleString()} words</span>
         <span className="status-separator">|</span>
-        <span className="status-item">
-          Characters: {chars.toLocaleString()}
-        </span>
-        <span className="status-separator">|</span>
-        <span className="status-item">
-          Lines: {lines}
-        </span>
+        <span className="status-item">{chars.toLocaleString()} characters</span>
+        <span className="status-separator status-hide-md">|</span>
+        <span className="status-item status-hide-md">English (US)</span>
+        <span className="status-separator status-hide-md">|</span>
+        <span className="status-item status-hide-md">Text Predictions: On</span>
       </div>
 
       <div className="status-right">
-        <span className="status-item" title={canUndo ? 'Undo available' : 'Nothing to undo'}>
-          ↩ {canUndo ? '•' : '○'}
-        </span>
-        <span className="status-item" title={canRedo ? 'Redo available' : 'Nothing to redo'}>
-          ↪ {canRedo ? '•' : '○'}
-        </span>
+        <div className="status-view-modes">
+          <button className="status-button active-view" title="Read Mode" aria-label="Read Mode">
+            <FileText size={13} strokeWidth={2} />
+          </button>
+          <button className="status-button" title="Print Layout" aria-label="Print Layout">
+            <Columns2 size={13} strokeWidth={2} />
+          </button>
+          <button className="status-button" title="Web Layout" aria-label="Web Layout">
+            <GalleryHorizontalEnd size={13} strokeWidth={2} />
+          </button>
+        </div>
 
-        <button className="status-button" onClick={onToggleNavigation} title="Toggle Navigation Pane">
-          📑
-        </button>
+        <span className="status-separator">|</span>
 
         <div className="zoom-controls">
-          <button className="zoom-button" onClick={handleZoomOut} disabled={zoom <= 25} title="Zoom Out">
-            −
+          <button className="zoom-button" onClick={zoomOut} disabled={zoom <= ZOOM_STEPS[0]} title="Zoom out" aria-label="Zoom out">
+            <ZoomOut size={13} strokeWidth={2.2} />
           </button>
-          <select
-            className="zoom-select"
-            value={zoom}
-            onChange={(e) => onZoomChange(Number(e.target.value))}
+          <input
+            type="range"
+            className="zoom-slider"
+            min={0}
+            max={ZOOM_STEPS.length - 1}
+            step={1}
+            value={effectiveIndex}
+            onChange={(e) => setZoom(ZOOM_STEPS[Number(e.target.value)])}
+            title={`Zoom ${zoom}%`}
+            aria-label={`Zoom level, currently ${zoom}%`}
+          />
+          <button className="zoom-button" onClick={zoomIn} disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} title="Zoom in" aria-label="Zoom in">
+            <ZoomIn size={13} strokeWidth={2.2} />
+          </button>
+          <span className="status-item zoom-value">{zoom}%</span>
+          <button
+            className="zoom-fit"
+            onClick={() => fitWidth(setZoom)}
+            title="Fit page width to window"
+            aria-label="Fit width"
           >
-            {zoomLevels.map(level => (
-              <option key={level} value={level}>{level}%</option>
-            ))}
-          </select>
-          <button className="zoom-button" onClick={handleZoomIn} disabled={zoom >= 300} title="Zoom In">
-            +
+            <Maximize2 size={11} strokeWidth={2.2} />
+            Fit
           </button>
         </div>
       </div>
     </div>
   );
 };
+
+function nearestZoomIndex(zoom: number): number {
+  let best = 0;
+  for (let i = 1; i < ZOOM_STEPS.length; i++) {
+    if (Math.abs(ZOOM_STEPS[i] - zoom) < Math.abs(ZOOM_STEPS[best] - zoom)) best = i;
+  }
+  return best;
+}
+
+/** Estimate a zoom level that fits the A4 page width inside the canvas viewport. */
+function fitWidth(setZoom: (z: number) => void): void {
+  const wrapper = document.querySelector('.document-canvas-wrapper');
+  if (!wrapper) return;
+  const available = wrapper.clientWidth - 72;
+  const pageWidthPx = 794;
+  const target = Math.round((available / pageWidthPx) * 100 / 5) * 5;
+  setZoom(Math.min(200, Math.max(50, target)));
+}

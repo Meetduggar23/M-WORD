@@ -8,28 +8,70 @@
 }
 
 .main-content {
+  position: relative;
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 
-/* Right panel placeholder */
-.right-panel {
-  width: 280px;
-  background-color: var(--bg-secondary);
-  border-left: 1px solid var(--border-color);
-  display: none; /* Will be shown when AI/Properties panel is active */
+/* ---------- Focus mode ---------- */
+
+.main-content.focus-mode .document-canvas-wrapper {
+  background:
+    radial-gradient(1200px 600px at 50% -160px, var(--bg-tertiary) 0%, transparent 70%),
+    var(--bg-secondary);
 }
 
-/* Responsive adjustments */
-@media (max-width: 1200px) {
-  .right-panel {
-    width: 240px;
+.focus-exit {
+  position: fixed;
+  top: 44px;
+  right: 16px;
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
+  box-shadow: var(--shadow-md);
+  opacity: 0.55;
+  transition: opacity var(--transition-normal), transform var(--transition-fast), color var(--transition-fast);
+}
+
+.focus-exit:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+  color: var(--accent-color);
+}
+
+/* ---------- Responsive panel behavior ---------- */
+
+@media (max-width: 1400px) {
+  .properties-panel,
+  .comments-panel,
+  .ai-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    box-shadow: var(--shadow-lg);
+    border-left: 1px solid var(--border-color);
   }
 }
 
-@media (max-width: 900px) {
-  .right-panel {
-    display: none;
+@media (max-width: 1024px) {
+  .navigation-pane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 80;
+    box-shadow: var(--shadow-lg);
+    border-right: 1px solid var(--border-color);
   }
 }

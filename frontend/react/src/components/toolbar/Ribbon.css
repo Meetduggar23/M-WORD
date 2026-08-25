@@ -1,324 +1,248 @@
+/* ============================================================
+   Ribbon — Word-style tabbed toolbar
+   ============================================================ */
+
 .ribbon-container {
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-subtle);
-  user-select: none;
-  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.04);
+  background: var(--ribbon-bg);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
   position: relative;
   z-index: 50;
+  animation: word-fade-in 200ms var(--ease-out);
 }
 
-/* ---- Tab strip ---- */
-.ribbon-tabs {
+/* ---------- Tab row ---------- */
+
+.ribbon-tabs-row {
   display: flex;
   align-items: center;
-  background: linear-gradient(180deg, #f2f5fa 0%, #eaeef6 100%);
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 0 10px;
-  gap: 2px;
+  padding: 0 6px;
+  height: 34px;
+  background: var(--ribbon-bg);
 }
 
-[data-theme="dark"] .ribbon-tabs {
-  background: linear-gradient(180deg, #232a3a 0%, #1e2433 100%);
+.ribbon-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ribbon-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .ribbon-tab {
   position: relative;
-  padding: 8px 15px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-secondary);
-  font-size: 12.5px;
-  font-weight: 600;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition:
-    color var(--transition-fast),
-    background-color var(--transition-fast);
-}
-
-.ribbon-tab::after {
-  content: '';
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 0;
-  height: 3px;
-  border-radius: 3px 3px 0 0;
-  background: var(--accent-gradient);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform 220ms var(--ease-spring);
+  border-radius: 0;
+  background: transparent;
+  white-space: nowrap;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .ribbon-tab:hover {
-  background: var(--hover-color);
   color: var(--text-primary);
+  background: var(--ribbon-tab-hover-bg);
 }
 
 .ribbon-tab.active {
-  background: var(--bg-primary);
-  color: var(--accent-color);
+  color: var(--ribbon-tab-active-color);
+  font-weight: 600;
+  background: var(--ribbon-tab-active-bg);
+  border-bottom: 2px solid var(--accent-color);
 }
 
 .ribbon-tab.active::after {
-  transform: scaleX(1);
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2.5px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent-color);
+  animation: ribbon-underline 200ms var(--ease-out);
 }
 
-/* ---- Ribbon body ---- */
+@keyframes ribbon-underline {
+  from { transform: scaleX(0.4); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+.ribbon-collapse {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ribbon-collapse:hover {
+  background: var(--hover-color);
+  color: var(--text-primary);
+}
+
+/* ---------- Content ---------- */
+
 .ribbon-content {
+  padding: 3px 8px 5px;
+  min-height: 84px;
+  background: var(--ribbon-tab-active-bg);
+  border-top: 1px solid var(--border-subtle);
+  animation: ribbon-content-in 180ms var(--ease-out);
+}
+
+@keyframes ribbon-content-in {
+  from { opacity: 0.4; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ribbon-groups {
   display: flex;
   align-items: stretch;
-  padding: 6px 12px 4px;
-  min-height: 84px;
-  background: var(--bg-primary);
+  gap: 0;
+  min-width: 0;
   overflow-x: auto;
-  overflow-y: hidden;
-  animation: word-fade-in 200ms var(--ease-out);
+  scrollbar-width: thin;
+  padding-bottom: 1px;
 }
 
-.ribbon-group-container {
-  display: flex;
-  gap: 8px;
-  padding: 0 4px;
+.ribbon-groups::-webkit-scrollbar {
+  height: 5px;
 }
 
-.ribbon-group {
-  display: flex;
+/* Column layout helper for stacked list buttons */
+.rb-col {
   flex-direction: column;
-  padding: 0 10px;
-  border-right: 1px solid var(--border-subtle);
-  transition: border-color var(--transition-normal);
+  align-items: stretch;
+  gap: 1px;
 }
 
-.ribbon-group:last-child {
-  border-right: none;
+/* Full-width dropdown trigger wrapping list buttons */
+.rib-dd-full {
+  display: block;
+  width: 100%;
 }
 
-.ribbon-group-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  text-align: center;
-  padding: 2px 0;
-  margin-top: auto;
+.rib-dd-full .rib-list-btn {
+  width: 100%;
 }
 
-.ribbon-buttons {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
+.rib-dd-full .rib-dd {
+  width: 100%;
 }
 
-/* ---- Buttons ---- */
-.ribbon-button {
-  display: flex;
-  flex-direction: column;
+/* ---------- Font color / highlight trigger ---------- */
+
+.font-color-btn {
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-width: 44px;
-  padding: 5px 4px;
-  border-radius: var(--radius-md);
-  transition:
-    background-color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    transform 90ms var(--ease-out),
-    border-color var(--transition-fast);
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.ribbon-button:hover {
-  background: var(--hover-color);
-  box-shadow: var(--shadow-sm);
-}
-
-.ribbon-button:active {
-  background: var(--active-color);
-  transform: scale(0.95);
-}
-
-.ribbon-button-active {
-  background: var(--accent-soft) !important;
-  border: 1px solid rgba(34, 100, 220, 0.35);
-  box-shadow: inset 0 1px 2px rgba(34, 100, 220, 0.08);
-}
-
-.ribbon-button-icon {
-  font-size: 15px;
-  line-height: 1;
-  transition: transform var(--transition-fast);
-}
-
-.ribbon-button:hover .ribbon-button-icon {
-  transform: translateY(-1px) scale(1.06);
-}
-
-.ribbon-button-label {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-/* ---- Selects ---- */
-.ribbon-select {
+  width: 28px;
   height: 26px;
-  font-size: 12px;
-  padding: 0 6px;
-  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.ribbon-select:hover {
-  border-color: var(--border-strong);
-}
-
-.ribbon-select:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: var(--shadow-glow);
-}
-
-.font-select {
-  width: 128px;
-}
-
-.size-select {
-  width: 50px;
-}
-
-.font-row {
-  gap: 3px;
-}
-
-/* ---- Color buttons ---- */
-.ribbon-color-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  cursor: pointer;
-  border-radius: var(--radius-md);
   transition: background-color var(--transition-fast);
 }
 
-.ribbon-color-button:hover {
+.font-color-btn:hover {
   background: var(--hover-color);
 }
 
-.color-input {
-  width: 30px;
-  height: 20px;
-  padding: 0;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: transparent;
-  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
-}
-
-.color-input:hover {
-  border-color: var(--accent-color);
-  box-shadow: var(--shadow-glow);
-}
-
-.color-input::-webkit-color-swatch-wrapper { padding: 1px; }
-.color-input::-webkit-color-swatch { border: none; border-radius: 2px; }
-
-/* ---- Styles gallery ---- */
-.styles-group {
-  min-width: 210px;
-}
-
-.styles-gallery {
-  display: flex;
-  gap: 3px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
-.style-preview-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 62px;
-  padding: 2px 7px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  cursor: pointer;
-  height: 28px;
-  transition: all var(--transition-fast);
-}
-
-.style-preview-btn:hover {
-  border-color: var(--accent-color);
-  background: var(--accent-softer);
-  box-shadow: var(--shadow-glow);
-  transform: translateY(-1px);
-}
-
-/* ---- Dropdowns ---- */
-.ribbon-dropdown-wrapper {
-  position: relative;
-}
-
-.ribbon-dropdown {
+.color-bar {
   position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-lg);
-  border-radius: var(--radius-lg);
-  padding: 10px;
-  z-index: 120;
-  min-width: 220px;
-  animation: word-pop-in 180ms var(--ease-out);
-  transform-origin: top left;
+  bottom: 3px;
+  left: 7px;
+  right: 7px;
+  height: 3px;
+  border-radius: 2px;
+  pointer-events: none;
 }
+
+/* ---------- Menu separator ---------- */
+
+.rib-menu-sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 3px 5px;
+}
+
+/* ---------- Shapes grid ---------- */
 
 .shapes-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(6, 32px);
   gap: 3px;
+  padding: 2px;
 }
 
 .shape-option {
-  width: 30px;
-  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid transparent;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border-radius: var(--radius-sm);
-  font-size: 16px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  color: var(--text-secondary);
+  background: transparent;
 }
 
 .shape-option:hover {
   background: var(--accent-soft);
-  border-color: rgba(34, 100, 220, 0.35);
-  transform: scale(1.1);
+  color: var(--accent-color);
 }
 
-.ribbon-placeholder {
+/* ---------- AI ribbon note ---------- */
+
+.ai-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 160px);
+  gap: 1px 6px;
+}
+
+.ai-ribbon-note {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex: 1;
+  gap: 7px;
+  align-self: center;
+  margin-left: 16px;
+  font-size: 11px;
   color: var(--text-muted);
-  font-size: var(--font-size-md);
+  padding: 7px 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.ai-ribbon-note svg {
+  color: #7c3aed;
+  flex-shrink: 0;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .ribbon-content {
+    min-height: 0;
+  }
+
+  .ai-actions-grid {
+    grid-template-columns: 160px;
+  }
 }

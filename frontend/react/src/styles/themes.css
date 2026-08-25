@@ -1,0 +1,77 @@
+/* ============================================================
+   WORD — Theme System
+   Canonical tokens live in globals.css (:root + [data-theme]).
+   This file provides semantic aliases and cross-theme helpers.
+   Components should consume variables — never hard-coded colors.
+   ============================================================ */
+
+:root {
+  /* Semantic aliases (spec naming) */
+  --background: var(--bg-secondary);
+  --surface: var(--bg-primary);
+  --surface-secondary: var(--bg-tertiary);
+  --text-primary-alias: var(--text-primary);
+  --text-secondary-alias: var(--text-secondary);
+  --border-alias: var(--border-color);
+  --accent: var(--accent-color);
+  --accent-hover-alias: var(--accent-hover);
+  --selection: var(--selection-color);
+  --shadow-alias: var(--shadow-md);
+
+  /* Elevation helpers for overlays */
+  --overlay-scrim: rgba(15, 23, 42, 0.4);
+}
+
+[data-theme="dark"] {
+  --overlay-scrim: rgba(0, 0, 0, 0.55);
+}
+
+/* Smooth, non-destructive theme transition.
+   Applied to <html> only while switching themes. */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 220ms var(--ease-in-out),
+    border-color 220ms var(--ease-in-out),
+    color 180ms var(--ease-in-out),
+    fill 220ms var(--ease-in-out),
+    box-shadow 220ms var(--ease-in-out) !important;
+  transition-delay: 0ms !important;
+}
+
+/* Shared panel choreography */
+.panel-enter-right {
+  animation: word-slide-right var(--transition-normal);
+}
+
+.panel-enter-left {
+  animation: word-slide-left var(--transition-normal);
+}
+
+/* Skeleton shimmer for loading states */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hover-color),
+    transparent
+  );
+  animation: skeleton-wave 1.4s infinite;
+}
+
+@keyframes skeleton-wave {
+  100% { transform: translateX(100%); }
+}
