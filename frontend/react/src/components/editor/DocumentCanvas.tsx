@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
 import {
   Paragraph, TextRun, Table, ImageBlock, Block, ShapeBlock, ChartBlock,
-  SmartArtBlock, EquationBlock, HorizontalRule, PageBreak
+  SmartArtBlock, EquationBlock, HorizontalRule, PageBreak, CursorPosition,
 } from '../../engine/DocumentEngine';
 import './DocumentCanvas.css';
 
@@ -14,21 +14,59 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
   const {
     document: doc, selection, insertText, deleteBackward, deleteForward,
     insertParagraph, toggleBold, toggleItalic, toggleUnderline,
-    selectAll, saveDocument, openDocument, newDocument, engine,
+    selectAll, engine,
     decreaseListLevel, insertHyperlink, setFontSize,
-    undo, redo,
+    undo, redo, setSelection,
   } = useDocumentEngine();
   const canvasRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
 
   useEffect(() => {
     if (canvasRef.current) canvasRef.current.focus();
   }, []);
+
+  interface CursorNode { textNode: Text | null; element: HTMLElement | null; offset: number; }
+
+  const findCursorNode = useCallback((): CursorNode | null => {
+    if (!canvasRef.current) return null;
+    const blockId = selection.end.blockId;
+    const runIndex = selection.end.runIndex;
+    const charOffset = selection.end.offset;
+    const blockEl = canvasRef.current.querySelector(`[data-block-id="${blockId}"]`);
+    if (!blockEl) return null;
+    const runSpans = blockEl.querySelectorAll('.text-run');
+
+    for (let i = 0; i <= runIndex && i < runSpans.length; i++) {
+      const span = runSpans[i];
+      if (i === runIndex) {
+        const walker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT, null);
+        let textNode = walker.nextNode() as Text | null;
+        let accumulated = 0;
+        while (textNode) {
+          const len = textNode.textContent?.length || 0;
+          if (accumulated + len >= charOffset) {
+            return { textNode, element: blockEl as HTMLElement, offset: charOffset - accumulated };
+          }
+          accumulated += len;
+          textNode = walker.nextNode() as Text | null;
+        }
+        if (span.lastChild) {
+          return { textNode: span.lastChild as Text, element: blockEl as HTMLElement, offset: span.lastChild.textContent?.length || 0 };
+        }
+        return { textNode: null, element: blockEl as HTMLElement, offset: 0 };
+      }
+    }
+    return { textNode: null, element: blockEl as HTMLElement, offset: 0 };
+  }, [selection.end]);
 
   // Cursor positioning
   const updateCursorPosition = useCallback(() => {
     if (!canvasRef.current) return;
     const oldCursor = canvasRef.current.querySelector('.editor-cursor');
     if (oldCursor) oldCursor.remove();
+
+    // Hide the caret while a range is selected — the native highlight shows instead
+    if (!selection.isCollapsed) return;
 
     const cursorNode = findCursorNode();
     if (!cursorNode) return;
@@ -67,43 +105,178 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
       canvasRef.current.style.cursor = 'none';
       canvasRef.current.appendChild(cursor);
     }
-  }, [selection, doc]);
+  }, [findCursorNode, selection]);
 
   useEffect(() => { updateCursorPosition(); }, [updateCursorPosition, selection]);
 
-  interface CursorNode { textNode: Text | null; element: HTMLElement | null; offset: number; }
+  // Re-anchor the caret after document mutations that don't move the
+  // selection (e.g. formatting or style changes re-render blocks).
+  useEffect(() => { updateCursorPosition(); }, [doc, updateCursorPosition]);
 
-  const findCursorNode = useCallback((): CursorNode | null => {
-    if (!canvasRef.current) return null;
-    const blockId = selection.end.blockId;
-    const runIndex = selection.end.runIndex;
-    const charOffset = selection.end.offset;
-    const blockEl = canvasRef.current.querySelector(`[data-block-id="${blockId}"]`);
-    if (!blockEl) return null;
-    const runSpans = blockEl.querySelectorAll('.text-run');
+  // ─── Mouse selection ───────────────────────────────────────────────────────
+  interface HitResult { blockId: string; runIndex: number; offset: number; blockEl: HTMLElement; }
 
-    for (let i = 0; i <= runIndex && i < runSpans.length; i++) {
-      const span = runSpans[i];
-      if (i === runIndex) {
-        const walker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT, null);
-        let textNode = walker.nextNode() as Text | null;
-        let accumulated = 0;
-        while (textNode) {
-          const len = textNode.textContent?.length || 0;
-          if (accumulated + len >= charOffset) {
-            return { textNode, element: blockEl as HTMLElement, offset: charOffset - accumulated };
-          }
-          accumulated += len;
-          textNode = walker.nextNode() as Text | null;
-        }
-        if (span.lastChild) {
-          return { textNode: span.lastChild as Text, element: blockEl as HTMLElement, offset: span.lastChild.textContent?.length || 0 };
-        }
-        return { textNode: null, element: blockEl as HTMLElement, offset: 0 };
-      }
+  const hitTest = useCallback((clientX: number, clientY: number): HitResult | null => {
+    const docEl = document as Document & {
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+      caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    };
+    let node: Node | null = null;
+    let offset = 0;
+    if (docEl.caretRangeFromPoint) {
+      const range = docEl.caretRangeFromPoint(clientX, clientY);
+      if (range) { node = range.startContainer; offset = range.startOffset; }
+    } else if (docEl.caretPositionFromPoint) {
+      const p = docEl.caretPositionFromPoint(clientX, clientY);
+      if (p) { node = p.offsetNode; offset = p.offset; }
     }
-    return { textNode: null, element: blockEl as HTMLElement, offset: 0 };
-  }, [selection.end]);
+    if (!node) return null;
+
+    // Climb from the text node to its run span, then to the owning block
+    let runSpan: HTMLElement | null = null;
+    let walker: Node | null = node;
+    while (walker) {
+      const el: HTMLElement | null = walker.nodeType === Node.ELEMENT_NODE
+        ? (walker as HTMLElement)
+        : walker.parentElement;
+      if (!el) return null;
+      if (el.classList.contains('text-run')) { runSpan = el; break; }
+      if (el.dataset.blockId && !runSpan) return null; // clicked a non-text block
+      walker = el.parentElement;
+    }
+    if (!runSpan) return null;
+
+    const blockEl = runSpan.closest('[data-block-id]') as HTMLElement | null;
+    if (!blockEl || !canvasRef.current?.contains(blockEl)) return null;
+    const blockId = blockEl.dataset.blockId!;
+
+    // Char offset inside the run
+    let charOffset = 0;
+    const spanWalker = document.createTreeWalker(runSpan, NodeFilter.SHOW_TEXT, null);
+    let tn = spanWalker.nextNode() as Text | null;
+    while (tn) {
+      if (tn === node) { charOffset += Math.min(offset, tn.textContent?.length ?? 0); break; }
+      charOffset += tn.textContent?.length ?? 0;
+      tn = spanWalker.nextNode() as Text | null;
+    }
+
+    const runs = Array.from(blockEl.querySelectorAll('.text-run'));
+    const runIndex = runs.indexOf(runSpan);
+    return { blockId, runIndex: runIndex < 0 ? 0 : runIndex, offset: charOffset, blockEl };
+  }, []);
+
+  const toCursor = useCallback((hit: HitResult | null): CursorPosition | null => {
+    if (!hit) return null;
+    return { blockId: hit.blockId, runIndex: hit.runIndex, offset: hit.offset };
+  }, []);
+
+  /** Order two positions by their DOM order so start always precedes end. */
+  const orderPositions = useCallback(
+    (a: CursorPosition & { el?: HTMLElement }, b: CursorPosition & { el?: HTMLElement }): [CursorPosition, CursorPosition] => {
+      if (a.blockId === b.blockId) {
+        const cmp = a.runIndex - b.runIndex || a.offset - b.offset;
+        return cmp <= 0 ? [a, b] : [b, a];
+      }
+      const elA = a.el ?? document.querySelector(`[data-block-id="${a.blockId}"]`);
+      const elB = b.el ?? document.querySelector(`[data-block-id="${b.blockId}"]`);
+      if (elA && elB && (elB.compareDocumentPosition(elA) & Node.DOCUMENT_POSITION_PRECEDING)) {
+        return [b, a];
+      }
+      return [a, b];
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+
+      const nativeSel = window.getSelection();
+      if (nativeSel && !nativeSel.isCollapsed && nativeSel.rangeCount > 0) {
+        const range = nativeSel.getRangeAt(0);
+        const startPos = mapBoundary(range.startContainer, range.startOffset);
+        const endPos = mapBoundary(range.endContainer, range.endOffset);
+        if (startPos && endPos) {
+          const [s, e] = orderPositions(startPos, endPos);
+          setSelection(s, e);
+        }
+      }
+    };
+
+    const mapBoundary = (container: Node, offset: number): (CursorPosition & { el?: HTMLElement }) | null => {
+      let runSpan: HTMLElement | null = null;
+      const el = container instanceof HTMLElement ? container : container.parentElement;
+      if (!el) return null;
+      runSpan = el.classList.contains('text-run') ? el : el.closest('.text-run');
+      if (!runSpan) return null;
+      const blockEl = runSpan.closest('[data-block-id]') as HTMLElement | null;
+      if (!blockEl) return null;
+      const blockId = blockEl.dataset.blockId!;
+      let charOffset = 0;
+      const tw = document.createTreeWalker(runSpan, NodeFilter.SHOW_TEXT, null);
+      let tn = tw.nextNode() as Text | null;
+      while (tn) {
+        if (tn === container) { charOffset += Math.min(offset, tn.textContent?.length ?? 0); break; }
+        charOffset += tn.textContent?.length ?? 0;
+        tn = tw.nextNode() as Text | null;
+      }
+      const runs = Array.from(blockEl.querySelectorAll('.text-run'));
+      const runIndex = runs.indexOf(runSpan);
+      return { blockId, runIndex: runIndex < 0 ? 0 : runIndex, offset: charOffset, el: blockEl };
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [hitTest, setSelection, orderPositions]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only left button on text areas
+    if (e.button !== 0) return;
+    draggingRef.current = true;
+    canvasRef.current?.focus();
+    const hit = hitTest(e.clientX, e.clientY);
+    const pos = toCursor(hit);
+    if (pos) setSelection(pos, pos);
+  }, [hitTest, toCursor, setSelection]);
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    const hit = hitTest(e.clientX, e.clientY);
+    if (!hit) return;
+
+    // Find the word around the click point within this run
+    const runText = hit.blockEl.querySelectorAll('.text-run')[hit.runIndex]?.textContent ?? '';
+    const globalOffset = (() => {
+      const runs = Array.from(hit.blockEl.querySelectorAll('.text-run'));
+      let acc = 0;
+      for (let i = 0; i < hit.runIndex; i++) acc += runs[i]?.textContent?.length ?? 0;
+      return acc + hit.offset;
+    })();
+
+    const isWordChar = (ch: string) => /[\w'’-]/.test(ch);
+    let start = globalOffset;
+    let end = globalOffset;
+    while (start > 0 && isWordChar(runText[start - 1] ?? '')) start--;
+    while (end < runText.length && isWordChar(runText[end] ?? '')) end++;
+    if (start === end) return;
+
+    // Map back to per-run cursor positions
+    const runs = Array.from(hit.blockEl.querySelectorAll('.text-run'));
+    let acc = 0;
+    let startPos: CursorPosition | null = null;
+    let endPos: CursorPosition | null = null;
+    for (let i = 0; i < runs.length; i++) {
+      const len = runs[i].textContent?.length ?? 0;
+      if (!startPos && start < acc + len) startPos = { blockId: hit.blockId, runIndex: i, offset: start - acc };
+      if (!endPos && end <= acc + len) endPos = { blockId: hit.blockId, runIndex: i, offset: end - acc };
+      acc += len;
+    }
+    if (startPos && endPos) {
+      setSelection(startPos, endPos);
+      e.preventDefault();
+    }
+  }, [hitTest, setSelection]);
+
 
   // Keyboard handler
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -111,15 +284,14 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
 
     if (isCtrl) {
       switch (e.key.toLowerCase()) {
+        // Note: document-level shortcuts (Ctrl+N/O/S/P/F/H…) are handled
+        // globally by the app shell — do not intercept them here.
         case 'z': e.preventDefault(); e.shiftKey ? redo() : undo(); return;
         case 'y': e.preventDefault(); redo(); return;
         case 'b': e.preventDefault(); toggleBold(); return;
         case 'i': e.preventDefault(); toggleItalic(); return;
         case 'u': e.preventDefault(); toggleUnderline(); return;
         case 'a': e.preventDefault(); selectAll(); return;
-        case 's': e.preventDefault(); saveDocument(); return;
-        case 'o': e.preventDefault(); openDocument(); return;
-        case 'n': e.preventDefault(); newDocument(); return;
         case 'k': e.preventDefault(); {
           const url = prompt('URL:', 'https://');
           if (url) insertHyperlink(url);
@@ -154,7 +326,7 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
       insertText(e.key);
     }
   }, [insertText, deleteBackward, deleteForward, insertParagraph, toggleBold, toggleItalic,
-      toggleUnderline, undo, redo, selectAll, saveDocument, openDocument, newDocument, engine,
+      toggleUnderline, undo, redo, selectAll, engine,
       setFontSize, insertHyperlink, decreaseListLevel]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -200,6 +372,8 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
         onPaste={handlePaste}
         onCopy={handleCopy}
         onCut={handleCut}
+        onMouseDown={handleMouseDown}
+        onDoubleClick={handleDoubleClick}
       >
         <div className="canvas-workspace">
           {doc.sections.map((section) => (

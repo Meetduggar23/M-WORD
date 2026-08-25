@@ -5,11 +5,12 @@ import './FileMenu.css';
 
 interface FileMenuProps {
   onClose: () => void;
+  onOpenSettings?: () => void;
 }
 
 type FileMenuTab = 'info' | 'new' | 'open' | 'save' | 'saveAs' | 'print' | 'export' | 'share' | 'account' | 'options';
 
-export const FileMenu: React.FC<FileMenuProps> = ({ onClose }) => {
+export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings }) => {
   const engine = useDocumentEngine();
   const [activeTab, setActiveTab] = useState<FileMenuTab>('info');
 
@@ -460,6 +461,18 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose }) => {
                     <button className="options-btn" onClick={() => engine.removeWatermark()}>Remove</button>
                   </div>
                 </div>
+                {onOpenSettings && (
+                  <div className="options-section">
+                    <h3>Appearance &amp; More</h3>
+                    <p className="options-info">Themes, editor preferences, and shortcuts live in the full Settings dialog.</p>
+                    <button
+                      className="options-btn options-btn-open-settings"
+                      onClick={() => { onClose(); onOpenSettings(); }}
+                    >
+                      Open Settings
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

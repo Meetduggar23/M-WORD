@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
+import { useUI } from '../../store/uiStore';
 import './ContextMenu.css';
 
 interface ContextMenuProps {
@@ -9,6 +10,7 @@ interface ContextMenuProps {
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ onClose, position }) => {
   const engine = useDocumentEngine();
+  const { setRightPanel } = useUI();
   const menuRef = useRef<HTMLDivElement>(null);
   const [showSubmenu, setShowSubmenu] = useState<string | null>(null);
 
@@ -144,6 +146,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ onClose, position }) =
 
         <MenuItem icon="🔗" label="Hyperlink..." onClick={menus.hyperlink} />
         <MenuItem icon="💬" label="Add Comment" onClick={menus.comment} />
+        <MenuItem
+          icon="✨"
+          label="AI Rewrite"
+          onClick={() => { setRightPanel('ai'); onClose(); }}
+        />
 
         <div className="context-divider" />
 

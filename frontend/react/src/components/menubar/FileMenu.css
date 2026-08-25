@@ -506,3 +506,11 @@
     padding: 96px !important;
   }
 }
+
+.options-btn-open-settings {
+  margin-top: 8px;
+  padding: 8px 18px;
+  background: var(--accent-gradient);
+  color: white;
+  border-radius: var(--radius-sm);
+}
