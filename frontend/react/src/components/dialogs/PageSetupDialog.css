@@ -1,0 +1,246 @@
+.page-setup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  background: rgba(10, 16, 30, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: word-fade-in 160ms var(--ease-out);
+}
+
+.page-setup-dialog {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: 520px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: word-pop-in 240ms var(--ease-spring);
+}
+
+.ps-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ps-tab {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  position: relative;
+}
+
+.ps-tab::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent-gradient);
+  transform: scaleX(0);
+  transition: transform 200ms var(--ease-spring);
+}
+
+.ps-tab:hover {
+  background: var(--hover-color);
+}
+
+.ps-tab.active {
+  color: var(--accent-color);
+}
+
+.ps-tab.active::after {
+  transform: scaleX(1);
+}
+
+.ps-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ps-preview {
+  width: 170px;
+  padding: 18px;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-canvas);
+}
+
+.ps-preview-info {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 10px;
+  text-align: center;
+}
+
+.ps-settings {
+  flex: 1;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.ps-section {
+  margin-bottom: 18px;
+}
+
+.ps-section h4 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 9px;
+  color: var(--text-secondary);
+}
+
+.ps-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ps-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ps-field label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 72px;
+}
+
+.ps-field input {
+  width: 62px;
+  height: 24px;
+  font-size: 11px;
+  padding: 0 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.ps-unit {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.ps-select {
+  height: 26px;
+  font-size: 11.5px;
+  padding: 0 5px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.ps-select.full {
+  width: 100%;
+}
+
+.ps-margin-presets {
+  margin-bottom: 10px;
+}
+
+.ps-orientation-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.ps-orient-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 20px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.ps-orient-btn:hover {
+  border-color: rgba(34, 100, 220, 0.45);
+  transform: translateY(-1px);
+}
+
+.ps-orient-btn.active {
+  border-color: var(--accent-color);
+  background: var(--accent-softer);
+  box-shadow: var(--shadow-glow);
+  color: var(--accent-color);
+}
+
+.orient-icon {
+  width: 30px;
+  height: 40px;
+  border: 1px solid var(--text-muted);
+  border-radius: 2px;
+  transition: all var(--transition-fast);
+}
+
+.orient-icon.portrait {
+  width: 24px;
+  height: 32px;
+}
+
+.orient-icon.landscape {
+  width: 36px;
+  height: 24px;
+}
+
+.ps-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.ps-btn {
+  padding: 7px 22px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ps-btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-btn.primary {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(34, 100, 220, 0.35);
+}
+
+.ps-btn.primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px rgba(34, 100, 220, 0.45);
+}
