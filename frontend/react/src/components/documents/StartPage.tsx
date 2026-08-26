@@ -4,6 +4,7 @@ import {
   FilePlus2, FolderOpen, Upload, LayoutGrid, MoreHorizontal, ArrowRight,
 } from 'lucide-react';
 import { RecentDoc, formatRelativeTime } from '../../services/storage';
+import { getGreeting } from '../../features/personalization/greeting';
 import './StartPage.css';
 
 export interface TemplateDef {
@@ -112,30 +113,17 @@ export const TEMPLATES: TemplateDef[] = [
   },
 ];
 
-const SHORTCUTS = [
-  { keys: ['Ctrl', 'N'], label: 'New document' },
-  { keys: ['Ctrl', 'O'], label: 'Open document' },
-  { keys: ['Ctrl', 'S'], label: 'Save document' },
-  { keys: ['Ctrl', 'F'], label: 'Find in document' },
-  { keys: ['Ctrl', 'Z'], label: 'Undo' },
-];
-
 interface StartPageProps {
   recents: RecentDoc[];
   userName: string;
+  isAuthenticated: boolean;
   onOpenTemplate: (template: TemplateDef) => void;
   onOpenRecent: (doc: RecentDoc) => void;
   onRemoveRecent: (id: string) => void;
   onOpenFile: () => void;
   onOpenGenerator: () => void;
-}
-
-function greeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 5) return 'Working late';
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  onOpenSettings: () => void;
+  onLogin?: () => void;
 }
 
 /** Word-style file type icon color */
@@ -157,174 +145,202 @@ function fileIcon(title: string): React.ReactNode {
   );
 }
 
+const TIPS = [
+  { keys: ['Ctrl', 'N'], label: 'New document' },
+  { keys: ['Ctrl', 'O'], label: 'Open document' },
+  { keys: ['Ctrl', 'S'], label: 'Save document' },
+  { keys: ['Ctrl', 'F'], label: 'Find in document' },
+  { keys: ['Ctrl', 'Z'], label: 'Undo' },
+];
+
 export const StartPage: React.FC<StartPageProps> = ({
-  recents, userName, onOpenTemplate, onOpenRecent, onOpenFile, onOpenGenerator,
+  recents, userName, isAuthenticated, onOpenTemplate, onOpenRecent, onOpenFile, onOpenGenerator, onOpenSettings, onLogin,
 }) => {
-  const greetingText = useMemo(() => `${greeting()}, ${userName}`, [userName]);
+  const hour = new Date().getHours();
+  const recentDocs = recents.map((d) => ({ title: d.title, openedAt: d.openedAt }));
+
+  // When not logged in, show a generic greeting without any name
+  const { greeting: authGreeting, tagline: authTagline } = useMemo(
+    () => getGreeting({ userName, hour, recentDocs }),
+    [userName, hour, recentDocs],
+  );
+
+  const periodLabel = hour >= 5 && hour < 12 ? 'Morning' : hour >= 12 && hour < 17 ? 'Afternoon' : hour >= 17 && hour < 21 ? 'Evening' : 'Night';
+  const greetingText = isAuthenticated ? authGreeting : `Good ${periodLabel}`;
+  const tagline = isAuthenticated ? authTagline : 'Sign in to get started with your documents.';
 
   return (
     <div className="start-page">
       <div className="start-scroll">
-        {/* ── Hero: greeting + quick actions ── */}
-        <div className="start-hero-row">
-          <div className="start-hero-left">
-            <h1 className="start-greeting">{greetingText}</h1>
-            <p className="start-subtitle">Create something new, or continue where you left off.</p>
-          </div>
-
-          <div className="start-hero-right">
-            <span className="quick-actions-label">Quick actions</span>
-            <div className="quick-actions-row">
-              <button className="quick-action-btn" onClick={onOpenFile}>
-                <FolderOpen size={16} strokeWidth={1.8} />
-                Open
-              </button>
-              <button className="quick-action-btn" onClick={onOpenGenerator}>
-                <Upload size={16} strokeWidth={1.8} />
-                Import
-              </button>
-              <button className="quick-action-btn" onClick={() => onOpenTemplate(TEMPLATES[0])}>
-                <LayoutGrid size={16} strokeWidth={1.8} />
-                New from template
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Create New: template cards ── */}
-        <section className="start-section" aria-label="Create new">
-          <h2 className="start-section-title">Create New</h2>
-
-          <div className="start-template-row">
-            {TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                className="template-card"
-                onClick={() => onOpenTemplate(tpl)}
-              >
-                <span
-                  className="template-icon"
-                  style={{ color: tpl.accent, background: `${tpl.accent}12` }}
-                >
-                  {tpl.icon}
-                </span>
-                <span className="template-name">{tpl.name}</span>
-                <span className="template-desc">{tpl.description}</span>
-              </button>
-            ))}
-
-            <button className="template-card template-card-more" onClick={onOpenGenerator}>
-              <span className="template-icon template-icon-more">
-                <span className="plus-icon">+</span>
-              </span>
-              <span className="template-name">More templates</span>
-            </button>
-          </div>
-        </section>
-
-        {/* ── Recent Documents ── */}
-        <section className="start-section" aria-label="Recent documents">
-          <div className="start-section-header">
-            <h2 className="start-section-title">
-              <Clock size={16} strokeWidth={2} />
-              Recent Documents
-            </h2>
-            {recents.length > 0 && (
-              <button className="view-all-btn">
-                View all
-                <ArrowRight size={13} strokeWidth={2.2} />
-              </button>
-            )}
-          </div>
-
-          {recents.length === 0 ? (
-            <div className="start-empty">
-              <FilePlus2 size={26} strokeWidth={1.6} />
-              <div className="start-empty-title">No recent documents</div>
-              <div className="start-empty-hint">
-                Documents you save will appear here so you can jump back in instantly.
+        <div className="start-layout">
+          <div className="start-main">
+            {/* ── Hero: greeting + quick actions ── */}
+            <div className="start-hero-row">
+              <div className="start-hero-left">
+                <h1 className="start-greeting">{greetingText}</h1>
+                <p className="start-subtitle">{tagline}</p>
+                {!isAuthenticated && onLogin && (
+                  <button className="quick-action-btn" style={{ marginTop: 12 }} onClick={onLogin}>
+                    Sign in to get started
+                  </button>
+                )}
               </div>
-            </div>
-          ) : (
-            <div className="recent-table">
-              <div className="recent-table-header">
-                <span className="rt-col rt-col-name">Name</span>
-                <span className="rt-col rt-col-time">Date modified</span>
-                <span className="rt-col rt-col-author">Author</span>
-                <span className="rt-col rt-col-actions" />
-              </div>
-              {recents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="recent-table-row"
-                  onClick={() => onOpenRecent(doc)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onOpenRecent(doc);
-                    }
-                  }}
-                  title={`Open ${doc.title}`}
-                >
-                  <span className="rt-col rt-col-name">
-                    {fileIcon(doc.title)}
-                    <span className="rt-title">{doc.title || 'Untitled document'}</span>
-                  </span>
-                  <span className="rt-col rt-col-time">
-                    {formatRelativeTime(doc.openedAt)}
-                  </span>
-                  <span className="rt-col rt-col-author">
-                    {userName || 'User'}
-                  </span>
-                  <span className="rt-col rt-col-actions">
-                    <button
-                      className="rt-more-btn"
-                      onClick={(e) => { e.stopPropagation(); }}
-                      title="More options"
-                      aria-label={`More options for ${doc.title}`}
-                    >
-                      <MoreHorizontal size={14} strokeWidth={2} />
-                    </button>
-                  </span>
+
+              <div className="start-hero-right">
+                <span className="quick-actions-label">Quick actions</span>
+                <div className="quick-actions-row">
+                  <button className="quick-action-btn" onClick={onOpenFile}>
+                    <FolderOpen size={16} strokeWidth={1.8} />
+                    Open
+                  </button>
+                  <button className="quick-action-btn" onClick={onOpenGenerator}>
+                    <Upload size={16} strokeWidth={1.8} />
+                    Import
+                  </button>
+                  <button className="quick-action-btn" onClick={() => onOpenTemplate(TEMPLATES[0])}>
+                    <LayoutGrid size={16} strokeWidth={1.8} />
+                    New from template
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-        </section>
 
-        <footer className="start-footer">WORD — Professional Document Editor</footer>
-      </div>
+            {/* ── Create New: template cards ── */}
+            <section className="start-section" aria-label="Create new">
+              <h2 className="start-section-title">Create New</h2>
 
-      {/* ── Right sidebar: Tips & Shortcuts ── */}
-      <aside className="start-sidebar">
-        <div className="tips-section">
-          <div className="tips-header">
-            <span className="tips-diamond">◆</span>
-            Tips &amp; Shortcuts
-          </div>
-          <ul className="tips-list">
-            {SHORTCUTS.map((sc, i) => (
-              <li key={i} className="tips-item">
-                <span className="tips-keys">
-                  {sc.keys.map((k, j) => (
-                    <span key={j}>
-                      <kbd>{k}</kbd>
-                      {j < sc.keys.length - 1 && <span className="tips-plus">+</span>}
+              <div className="start-template-row">
+                {TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    className="template-card"
+                    onClick={() => onOpenTemplate(tpl)}
+                  >
+                    <span
+                      className="template-icon"
+                      style={{ color: tpl.accent, background: `${tpl.accent}12` }}
+                    >
+                      {tpl.icon}
                     </span>
+                    <span className="template-name">{tpl.name}</span>
+                    <span className="template-desc">{tpl.description}</span>
+                  </button>
+                ))}
+
+                <button className="template-card template-card-more" onClick={onOpenGenerator}>
+                  <span className="template-icon template-icon-more">
+                    <span className="plus-icon">+</span>
+                  </span>
+                  <span className="template-name">More templates</span>
+                </button>
+              </div>
+            </section>
+
+            {/* ── Recent Documents ── */}
+            <section className="start-section" aria-label="Recent documents">
+              <div className="start-section-header">
+                <h2 className="start-section-title">
+                  <Clock size={16} strokeWidth={2} />
+                  Recent Documents
+                </h2>
+                {recents.length > 0 && (
+                  <button className="view-all-btn">
+                    View all
+                    <ArrowRight size={13} strokeWidth={2.2} />
+                  </button>
+                )}
+              </div>
+
+              {recents.length === 0 ? (
+                <div className="start-empty">
+                  <FilePlus2 size={26} strokeWidth={1.6} />
+                  <div className="start-empty-title">No recent documents</div>
+                  <div className="start-empty-hint">
+                    Documents you save will appear here so you can jump back in instantly.
+                  </div>
+                </div>
+              ) : (
+                <div className="recent-table">
+                  <div className="recent-table-header">
+                    <span className="rt-col rt-col-name">Name</span>
+                    <span className="rt-col rt-col-time">Date modified</span>
+                    <span className="rt-col rt-col-author">Author</span>
+                    <span className="rt-col rt-col-actions" />
+                  </div>
+                  {recents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="recent-table-row"
+                      onClick={() => onOpenRecent(doc)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onOpenRecent(doc);
+                        }
+                      }}
+                      title={`Open ${doc.title}`}
+                    >
+                      <span className="rt-col rt-col-name">
+                        {fileIcon(doc.title)}
+                        <span className="rt-title">{doc.title || 'Untitled document'}</span>
+                      </span>
+                      <span className="rt-col rt-col-time">
+                        {formatRelativeTime(doc.openedAt)}
+                      </span>
+                      <span className="rt-col rt-col-author">
+                        {userName || (isAuthenticated ? 'You' : 'Guest')}
+                      </span>
+                      <span className="rt-col rt-col-actions">
+                        <button
+                          className="rt-more-btn"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          title="More options"
+                          aria-label={`More options for ${doc.title}`}
+                        >
+                          <MoreHorizontal size={14} strokeWidth={2} />
+                        </button>
+                      </span>
+                    </div>
                   ))}
-                </span>
-                <span className="tips-label">{sc.label}</span>
-              </li>
-            ))}
-          </ul>
-          <button className="tips-more-btn">
-            See more shortcuts
-            <ArrowRight size={12} strokeWidth={2.2} />
-          </button>
+                </div>
+              )}
+            </section>
+
+            <footer className="start-footer">WORD — Professional Document Editor</footer>
+          </div>
+
+          {/* ── Right sidebar: Tips & Shortcuts ── */}
+          <aside className="start-sidebar">
+            <div className="tips-section">
+              <div className="tips-header">
+                <span className="tips-diamond">&#9670;</span>
+                Tips &amp; Shortcuts
+              </div>
+              <ul className="tips-list">
+                {TIPS.map((tip: { keys: string[]; label: string }, i: number) => (
+                  <li key={i} className="tips-item">
+                    <span className="tips-keys">
+                      {tip.keys.map((k: string, j: number) => (
+                        <React.Fragment key={j}>
+                          {j > 0 && <span className="tips-plus">+</span>}
+                          <kbd>{k}</kbd>
+                        </React.Fragment>
+                      ))}
+                    </span>
+                    <span className="tips-label">{tip.label}</span>
+                  </li>
+                ))}
+              </ul>
+              <button className="tips-more-btn" onClick={() => onOpenSettings?.()}>
+                See more shortcuts
+                <ArrowRight size={12} strokeWidth={2.5} />
+              </button>
+            </div>
+          </aside>
         </div>
-      </aside>
+      </div>
     </div>
   );
 };

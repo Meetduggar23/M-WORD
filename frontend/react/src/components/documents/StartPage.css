@@ -4,7 +4,6 @@
 
 .start-page {
   flex: 1;
-  display: flex;
   overflow: hidden;
   background: var(--bg-secondary);
   animation: word-fade-in 240ms var(--ease-out);
@@ -13,8 +12,18 @@
 .start-scroll {
   flex: 1;
   overflow-y: auto;
-  max-width: 960px;
   padding: 36px 44px 32px;
+}
+
+.start-layout {
+  display: flex;
+  gap: 36px;
+  max-width: 1200px;
+}
+
+.start-main {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── Hero: greeting + quick actions ── */
@@ -394,7 +403,9 @@
 .start-sidebar {
   width: 240px;
   flex-shrink: 0;
-  padding: 36px 24px 32px 0;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
 }
 
 .tips-section {
