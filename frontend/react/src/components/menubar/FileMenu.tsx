@@ -5,7 +5,7 @@ import {
   Info, FilePlus, FolderOpen, Save, FileDown, Printer,
   Download, Share2, UserCircle, Settings, ArrowLeft,
   FileText, BarChart3, Mail, Newspaper, LayoutGrid,
-  Megaphone, Receipt, Code2, Braces, FileCode, FileType,
+  Megaphone, Receipt, Code2, Braces,
   Copy, Globe, Type as TypeIcon, LogOut, User,
 } from 'lucide-react';
 import './FileMenu.css';
@@ -53,12 +53,10 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onO
   ];
 
   const exportFormats = [
-    { format: 'PDF', icon: <FileText size={18} strokeWidth={1.8} />, description: 'Adobe Acrobat Document', extension: '.pdf' },
+    { format: 'PDF', icon: <FileText size={18} strokeWidth={1.8} />, description: 'Open print dialog to save as PDF', extension: '.pdf' },
     { format: 'HTML', icon: <Code2 size={18} strokeWidth={1.8} />, description: 'Web Page', extension: '.html' },
     { format: 'Plain Text', icon: <TypeIcon size={18} strokeWidth={1.8} />, description: 'Plain text file', extension: '.txt' },
     { format: 'JSON', icon: <Braces size={18} strokeWidth={1.8} />, description: 'WORD native format', extension: '.json' },
-    { format: 'RTF', icon: <FileCode size={18} strokeWidth={1.8} />, description: 'Rich Text Format', extension: '.rtf' },
-    { format: 'Word Document', icon: <FileType size={18} strokeWidth={1.8} />, description: 'Microsoft Word format', extension: '.docx' },
   ];
 
   const handleNewBlank = () => { engine.newDocument(); onClose(); };
@@ -89,7 +87,10 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onO
     onClose();
   };
   const handleExportText = () => {
-    const text = engine.getSelectedText() || '';
+    // Export the current document when there is no active selection. A
+    // selection is still respected for users intentionally exporting only a
+    // portion of the document.
+    const text = engine.getSelectedText() || engine.getAllText();
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -104,8 +105,18 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onO
   return (
     <div className="file-menu-container">
       <div className="file-menu-sidebar">
-        <div className="file-menu-logo">
-          <span className="logo-text-large">WORD</span>
+        <div className="file-menu-sidebar-head">
+          <button className="file-menu-back" onClick={onClose} aria-label="Back to editor">
+            <ArrowLeft size={17} strokeWidth={2} />
+            <span>Back to editor</span>
+          </button>
+          <div className="file-menu-logo">
+            <img src="/logo2.png" alt="WORD logo" draggable={false} />
+            <div>
+              <span className="logo-text-large">WORD</span>
+              <span className="logo-text-subtitle">Document workspace</span>
+            </div>
+          </div>
         </div>
         {tabs.map(tab => (
           <button
@@ -117,11 +128,6 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onO
             <span className="file-tab-label">{tab.label}</span>
           </button>
         ))}
-        <div className="file-menu-spacer" />
-        <button className="file-menu-tab back" onClick={onClose}>
-          <TabIcon icon={<ArrowLeft size={18} strokeWidth={1.8} />} />
-          <span className="file-tab-label">Back</span>
-        </button>
       </div>
 
       <div className="file-menu-content">
@@ -212,7 +218,7 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onO
                 <FolderOpen size={20} strokeWidth={1.8} />
                 <div>
                   <div className="open-title">Browse Files</div>
-                  <div className="open-desc">Open .word, .json, or .txt files</div>
+                  <div className="open-desc">Open WORD native (.word or .json) files</div>
                 </div>
               </button>
               <div className="recent-files">
@@ -226,16 +232,23 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onO
         {/* Save Tab */}
         {activeTab === 'save' && (
           <div className="file-save-panel">
-            <h2>Save Document</h2>
-            <div className="save-options">
-              <button className="save-btn primary" onClick={handleSave}>
-                <Save size={20} strokeWidth={1.8} />
-                <div>
-                  <div className="save-title">Save to Disk</div>
-                  <div className="save-desc">Save as .word file</div>
-                </div>
-              </button>
-            </div>
+          <h2>Save Document</h2>
+          <div className="save-options">
+            <button className="save-btn primary" onClick={handleExportHTML}>
+              <Download size={20} strokeWidth={1.8} />
+              <div>
+                <div className="save-title">Download formatted document</div>
+                <div className="save-desc">Download the latest editor changes as HTML</div>
+              </div>
+            </button>
+            <button className="save-btn" onClick={handleSaveAsJSON}>
+              <Save size={20} strokeWidth={1.8} />
+              <div>
+                <div className="save-title">Save editable file</div>
+                <div className="save-desc">Save the complete WORD document model as JSON</div>
+              </div>
+            </button>
+          </div>
           </div>
         )}
 
@@ -307,7 +320,7 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onO
             <div className="export-options">
               {exportFormats.map((fmt, i) => (
                 <button key={i} className="export-btn" onClick={() => {
-                  if (fmt.format === 'PDF' || fmt.format === 'Word Document') handleExportPDF();
+                  if (fmt.format === 'PDF') handleExportPDF();
                   else if (fmt.format === 'HTML') handleExportHTML();
                   else if (fmt.format === 'Plain Text') handleExportText();
                   else if (fmt.format === 'JSON') handleSaveAsJSON();

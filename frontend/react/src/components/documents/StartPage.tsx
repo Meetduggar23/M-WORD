@@ -2,11 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FileText, Briefcase, BarChart3, Mail, Clock, StickyNote,
-  FilePlus2, FolderOpen, Upload, LayoutGrid, MoreHorizontal, ArrowRight,
-  ChevronDown, ChevronUp, Keyboard, Command, Settings, CircleHelp,
+  FilePlus2, FolderOpen, Upload, LayoutGrid, ArrowRight,
+  ChevronDown, ChevronUp, Keyboard, Command, Settings, CircleHelp, Trash2,
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
-import packageJson from '../../../package.json';
 import { RecentDoc, formatRelativeTime } from '../../services/storage';
 import { getGreeting } from '../../features/personalization/greeting';
 import './StartPage.css';
@@ -238,8 +237,9 @@ const StartFooter: React.FC<{
         </nav>
       </div>
       <div className="start-footer-bottom">
-        <span>© 2026 WORD</span>
-        <div className="start-footer-bottom-actions"><div ref={featuresRef} className="start-features-wrap"><button type="button" className="start-features-trigger" aria-expanded={featuresOpen} aria-haspopup="menu" onClick={toggleFeatures}>All features {featuresOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>{menu}</div><span>Version {packageJson.version}</span></div>
+        <span className="start-footer-credit">Made by Meet Duggar · All rights reserved</span>
+        <span>© 2025 WORD</span>
+        <div className="start-footer-bottom-actions"><div ref={featuresRef} className="start-features-wrap"><button type="button" className="start-features-trigger" aria-expanded={featuresOpen} aria-haspopup="menu" onClick={toggleFeatures}>All features {featuresOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>{menu}</div></div>
       </div>
     </footer>
   );
@@ -273,7 +273,7 @@ const TIPS = [
 ];
 
 export const StartPage: React.FC<StartPageProps> = ({
-  recents, userName, isAuthenticated, onOpenTemplate, onOpenRecent, onOpenFile, onOpenGenerator, onOpenSettings, onOpenSettingsPage, onOpenCommandCenter, onLogin,
+  recents, userName, isAuthenticated, onOpenTemplate, onOpenRecent, onRemoveRecent, onOpenFile, onOpenGenerator, onOpenSettings, onOpenSettingsPage, onOpenCommandCenter, onLogin,
 }) => {
   const hour = new Date().getHours();
   const recentDocs = recents.map((d) => ({ title: d.title, openedAt: d.openedAt }));
@@ -284,9 +284,8 @@ export const StartPage: React.FC<StartPageProps> = ({
     [userName, hour, recentDocs],
   );
 
-  const periodLabel = hour >= 5 && hour < 12 ? 'Morning' : hour >= 12 && hour < 17 ? 'Afternoon' : hour >= 17 && hour < 21 ? 'Evening' : 'Night';
-  const greetingText = isAuthenticated ? authGreeting : `Good ${periodLabel}`;
-  const tagline = isAuthenticated ? authTagline : 'Sign in to get started with your documents.';
+  const greetingText = authGreeting;
+  const tagline = authTagline;
 
   return (
     <div className="start-page" id="start-home">
@@ -308,6 +307,10 @@ export const StartPage: React.FC<StartPageProps> = ({
               <div className="start-hero-right">
                 <span className="quick-actions-label">Quick actions</span>
                 <div className="quick-actions-row">
+                  <button className="quick-action-btn quick-action-primary" onClick={() => onOpenTemplate(TEMPLATES[0])}>
+                    <FilePlus2 size={16} strokeWidth={1.8} />
+                    New document
+                  </button>
                   <button className="quick-action-btn" onClick={onOpenFile}>
                     <FolderOpen size={16} strokeWidth={1.8} />
                     Open
@@ -362,12 +365,6 @@ export const StartPage: React.FC<StartPageProps> = ({
                   <Clock size={16} strokeWidth={2} />
                   Recent Documents
                 </h2>
-                {recents.length > 0 && (
-                  <button className="view-all-btn">
-                    View all
-                    <ArrowRight size={13} strokeWidth={2.2} />
-                  </button>
-                )}
               </div>
 
               {recents.length === 0 ? (
@@ -414,11 +411,11 @@ export const StartPage: React.FC<StartPageProps> = ({
                       <span className="rt-col rt-col-actions">
                         <button
                           className="rt-more-btn"
-                          onClick={(e) => { e.stopPropagation(); }}
-                          title="More options"
-                          aria-label={`More options for ${doc.title}`}
+                          onClick={(e) => { e.stopPropagation(); onRemoveRecent(doc.id); }}
+                          title="Remove from recent documents"
+                          aria-label={`Remove ${doc.title} from recent documents`}
                         >
-                          <MoreHorizontal size={14} strokeWidth={2} />
+                          <Trash2 size={14} strokeWidth={1.8} />
                         </button>
                       </span>
                     </div>
@@ -427,14 +424,6 @@ export const StartPage: React.FC<StartPageProps> = ({
               )}
             </section>
 
-            <StartFooter
-              onOpenTemplate={onOpenTemplate}
-              onOpenFile={onOpenFile}
-              onOpenGenerator={onOpenGenerator}
-              onOpenSettings={onOpenSettings}
-              onOpenSettingsPage={onOpenSettingsPage}
-              onOpenCommandCenter={onOpenCommandCenter}
-            />
           </div>
 
           {/* ── Right sidebar: Tips & Shortcuts ── */}
@@ -466,6 +455,14 @@ export const StartPage: React.FC<StartPageProps> = ({
             </div>
           </aside>
         </div>
+        <StartFooter
+          onOpenTemplate={onOpenTemplate}
+          onOpenFile={onOpenFile}
+          onOpenGenerator={onOpenGenerator}
+          onOpenSettings={onOpenSettings}
+          onOpenSettingsPage={onOpenSettingsPage}
+          onOpenCommandCenter={onOpenCommandCenter}
+        />
       </div>
     </div>
   );

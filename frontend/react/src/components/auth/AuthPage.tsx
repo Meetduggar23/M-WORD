@@ -4,7 +4,6 @@ import {
   CheckCircle, XCircle, AlertCircle, FileText, Shield, Zap,
 } from 'lucide-react';
 import { useAuth, validatePassword, validateEmail } from '../../store/authStore';
-import { Logo } from '../common/Logo';
 import './AuthPage.css';
 
 interface AuthPageProps {
@@ -180,7 +179,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack }) => {
         <div className="auth-brand">
           <div className="auth-brand-content">
             <div className="auth-brand-logo">
-              <Logo size={28} />
+              <img
+                src="/logo2.png"
+                alt="WORD logo"
+                width={23}
+                height={30}
+                draggable={false}
+              />
               <span className="auth-brand-wordmark">WORD</span>
             </div>
             <h2 className="auth-brand-headline">

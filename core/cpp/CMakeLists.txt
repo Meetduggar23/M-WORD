@@ -24,6 +24,7 @@ endif()
 
 # Main engine library
 add_library(quill_engine
+    src/core/types.cpp
     src/document/document_model.cpp
     src/document/document_element.cpp
     src/document/section.cpp
@@ -31,28 +32,9 @@ add_library(quill_engine
     src/document/table.cpp
     src/document/image.cpp
     src/document/shape.cpp
-    src/document/header_footer.cpp
     src/document/comment.cpp
     src/document/revision.cpp
     src/document/metadata.cpp
-    src/text/text_engine.cpp
-    src/text/text_run.cpp
-    src/text/text_selection.cpp
-    src/text/character_formatting.cpp
-    src/layout/layout_engine.cpp
-    src/layout/page_layout.cpp
-    src/layout/pagination.cpp
-    src/layout/column_layout.cpp
-    src/tables/table_engine.cpp
-    src/images/image_engine.cpp
-    src/shapes/shape_engine.cpp
-    src/history/undo_redo.cpp
-    src/history/command.cpp
-    src/clipboard/clipboard_manager.cpp
-    src/serialization/document_serializer.cpp
-    src/serialization/document_deserializer.cpp
-    src/serialization/native_format.cpp
-    src/rendering/renderer.cpp
     src/api/engine_api.cpp
 )
 
@@ -75,7 +57,11 @@ endif()
 # Testing
 if(BUILD_TESTS)
     enable_testing()
-    add_subdirectory(tests)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt)
+        add_subdirectory(tests)
+    else()
+        message(STATUS "BUILD_TESTS is ON, but no C++ tests are present; skipping test targets")
+    endif()
 endif()
 
 # Install rules

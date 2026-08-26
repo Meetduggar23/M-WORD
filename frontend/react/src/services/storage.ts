@@ -62,7 +62,8 @@ export function loadRecents(): RecentDoc[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (d): d is RecentDoc =>
-        typeof d?.id === 'string' && typeof d?.title === 'string' && typeof d?.snapshot === 'string',
+        typeof d?.id === 'string' && typeof d?.title === 'string' &&
+        typeof d?.snapshot === 'string' && typeof d?.openedAt === 'number' && Number.isFinite(d.openedAt),
     );
   } catch {
     return [];

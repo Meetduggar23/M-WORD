@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { User, Settings, Sun, LogOut } from 'lucide-react';
+import { User, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../../store/authStore';
 import './ProfileDropdown.css';
 
@@ -56,11 +56,6 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
         <Settings size={14} strokeWidth={1.9} />
         Settings
       </button>
-      <button className="pd-item" role="menuitem" onClick={() => { onClose(); }}>
-        <Sun size={14} strokeWidth={1.9} />
-        Appearance
-      </button>
-
       <div className="pd-sep" />
 
       <button className="pd-item pd-logout" role="menuitem" onClick={() => { logout(); onClose(); }}>

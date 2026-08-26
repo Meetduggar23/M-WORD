@@ -316,22 +316,25 @@ const AppShell: React.FC = () => {
     setSaveStatus('saving');
     const json = engine.exportJSON();
     const title = engine.document?.metadata.title || 'Untitled Document';
+    const documentId = engine.document?.id;
+    const words = engine.getWordCount();
 
     saveTimerRef.current = window.setTimeout(() => {
       setSaveStatus('saved');
-      if (prefs.autosave) {
-        setRecents(upsertRecent(activeTabId, title, json));
-      }
+      // Every successful save belongs in Recent Documents. The autosave
+      // preference controls timing, not whether a manually saved file is
+      // discoverable from the home page.
+      setRecents(upsertRecent(activeTabId, title, json));
       // Version history: keep a rolling snapshot on each manual save
-      if (engine.document) {
+      if (documentId) {
         void import('./features/history/snapshots').then(({ addSnapshot }) => {
-          addSnapshot(engine.document!.id, { title, data: json, words: engine.getWordCount(), label: 'Save' });
+          addSnapshot(documentId, { title, data: json, words, label: 'Save' });
         });
       }
       setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, snapshot: json, dirty: false, title } : t)));
       toast('success', 'Document saved', `“${title}” was saved on this device.`);
     }, 650);
-  }, [activeTabId, engine, prefs.autosave, toast]);
+  }, [activeTabId, engine, toast]);
 
   handleSaveRef.current = handleSave;
 
@@ -518,15 +521,15 @@ const AppShell: React.FC = () => {
             onOpenTemplate={(tpl) => createNewDocument(tpl)}
             onOpenRecent={(doc) => {
               const tab: DocTab = {
-                id: generateId(),
+                id: doc.id,
                 title: doc.title,
                 snapshot: doc.snapshot,
                 dirty: false,
               };
               openTab(tab);
-              // The reopened doc gets a fresh session id — drop the stale entry
-              // so saving later doesn't leave duplicates in the list.
-              setRecents(removeRecent(doc.id));
+              // Keep the same id so later saves update this recent entry
+              // instead of creating a duplicate.
+              setRecents(upsertRecent(doc.id, doc.title, doc.snapshot));
               toast('info', 'Document opened', `“${doc.title}” loaded from recent files.`);
             }}
             onRemoveRecent={(id) => setRecents(removeRecent(id))}

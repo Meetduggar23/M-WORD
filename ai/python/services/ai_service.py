@@ -3,7 +3,7 @@ Quill AI Service - Writing Assistant
 """
 
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RewriteRequest(BaseModel):
@@ -15,7 +15,7 @@ class RewriteRequest(BaseModel):
 class RewriteResponse(BaseModel):
     original: str
     rewritten: str
-    suggestions: List[str] = []
+    suggestions: List[str] = Field(default_factory=list)
 
 
 class GrammarCheckRequest(BaseModel):
@@ -32,7 +32,7 @@ class GrammarIssue(BaseModel):
 
 
 class GrammarCheckResponse(BaseModel):
-    issues: List[GrammarIssue] = []
+    issues: List[GrammarIssue] = Field(default_factory=list)
     score: float = 1.0
 
 

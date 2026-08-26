@@ -34,7 +34,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onClose }) => {
       return;
     }
 
-    updateProfile({ name: trimmedName, email: trimmedEmail });
+    const result = updateProfile({ name: trimmedName, email: trimmedEmail });
+    if (!result.ok) {
+      setError(result.error || 'Unable to update your profile.');
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

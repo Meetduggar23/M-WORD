@@ -7,7 +7,6 @@ import { useDocumentEngine } from '../../hooks/useDocumentEngine';
 import { useUI } from '../../store/uiStore';
 import { useToast } from '../toast/Toast';
 import { useAuth } from '../../store/authStore';
-import { Logo } from '../common/Logo';
 import './TitleBar.css';
 
 export type SaveStatus = 'saved' | 'unsaved' | 'saving';
@@ -19,7 +18,7 @@ interface TitleBarProps {
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave, onProfileClick }) => {
-  const { document: doc, setDocumentTitle, saveDocument, canUndo, canRedo, undo, redo } = useDocumentEngine();
+  const { document: doc, setDocumentTitle, saveDocument, exportAsHTML, canUndo, canRedo, undo, redo } = useDocumentEngine();
   const { openDialog, focusMode } = useUI();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -63,6 +62,18 @@ export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave, onProfil
     openDialog('find');
   };
 
+  const handleDownloadCopy = () => {
+    const html = exportAsHTML();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${doc?.metadata.title || 'document'}.html`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast('success', 'Download ready', 'The latest editor changes were included.');
+  };
+
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(`${window.location.href}#${encodeURIComponent(doc?.metadata.title ?? '')}`);
@@ -83,7 +94,14 @@ export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave, onProfil
     <div className="title-bar">
       {/* ── Left: brand, menu, document name, save status ── */}
       <div className="title-bar-left">
-        <Logo size={26} className="title-logo" />
+        <img
+          src="/logo2.png"
+          alt="WORD logo"
+          width={26}
+          height={26}
+          className="title-logo"
+          draggable={false}
+        />
         <button
           className="tb-icon-btn"
           onClick={() => window.dispatchEvent(new CustomEvent('word:toggle-file-menu'))}
@@ -135,9 +153,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave, onProfil
                 <Save size={14} strokeWidth={1.9} />
                 Save
               </button>
-              <button className="dnm-item" role="menuitem" onClick={() => { setNameMenuOpen(false); saveDocument(); }}>
+              <button className="dnm-item" role="menuitem" onClick={() => { setNameMenuOpen(false); handleDownloadCopy(); }}>
                 <Download size={14} strokeWidth={1.9} />
-                Download a copy
+                Download formatted copy
               </button>
               <div className="dnm-sep" />
               <button className="dnm-item" role="menuitem" onClick={() => { setNameMenuOpen(false); openDialog('wordCount'); }}>

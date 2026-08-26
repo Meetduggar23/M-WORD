@@ -72,7 +72,10 @@
   margin-bottom: 48px;
 }
 
-.auth-brand-logo svg {
+.auth-brand-logo img {
+  width: 23px;
+  height: 30px;
+  object-fit: contain;
   opacity: 0.9;
 }
 

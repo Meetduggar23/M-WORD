@@ -11,23 +11,60 @@
 /* ─── Sidebar ─────────────────────────────────────────────────────── */
 
 .file-menu-sidebar {
-  width: 240px;
-  min-width: 240px;
+  width: 256px;
+  min-width: 256px;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #14294e 0%, #0b1830 100%);
+  background: linear-gradient(180deg, #162f59 0%, #0c1b35 100%);
   padding: 0;
   overflow-y: auto;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.file-menu-sidebar-head {
+  padding: 14px 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.file-menu-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: 500 12px/1 var(--font-family);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.file-menu-back:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-menu-back:focus-visible,
+.file-menu-tab:focus-visible {
+  outline: 2px solid #74b9ff;
+  outline-offset: -2px;
 }
 
 .file-menu-logo {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 20px 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  margin-bottom: 8px;
+  padding: 22px 9px 0;
+}
+
+.file-menu-logo img {
+  width: 20px;
+  height: 27px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .logo-text-large {
@@ -37,19 +74,27 @@
   letter-spacing: 1.5px;
 }
 
+.logo-text-subtitle {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+
 .file-menu-tab {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 20px;
+  padding: 11px 20px;
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.65);
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   text-align: left;
   border-left: 3px solid transparent;
   font-family: var(--font-family);
@@ -61,9 +106,10 @@
 }
 
 .file-menu-tab.active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(91, 163, 237, 0.17);
   color: #ffffff;
-  border-left-color: #4a90d9;
+  border-left-color: #65adf5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .file-tab-icon {
@@ -84,15 +130,6 @@
   flex: 1;
 }
 
-.file-menu-spacer {
-  flex: 1;
-}
-
-.file-menu-tab.back {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  margin-top: 4px;
-}
-
 /* ─── Content Area ────────────────────────────────────────────────── */
 
 .file-menu-content {
@@ -100,16 +137,73 @@
   min-width: 0;
   overflow-y: auto;
   background: var(--bg-primary, #ffffff);
-  padding: 32px 40px;
+  padding: 36px clamp(24px, 4vw, 56px);
 }
 
 .file-menu-content h2 {
   font-size: 22px;
   font-weight: 600;
   color: var(--text-primary, #1a1a1a);
-  margin: 0 0 24px;
-  padding-bottom: 12px;
+  margin: 0 0 28px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--border-color, #e5e5e5);
+}
+
+@media (max-width: 720px) {
+  .file-menu-sidebar {
+    width: 188px;
+    min-width: 188px;
+  }
+
+  .file-menu-sidebar-head {
+    padding-inline: 10px;
+  }
+
+  .file-menu-tab {
+    padding-inline: 14px;
+  }
+
+  .file-menu-content {
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 520px) {
+  .file-menu-container {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .file-menu-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-height: 260px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+
+  .file-menu-sidebar-head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .file-menu-logo {
+    padding: 0;
+  }
+
+  .file-menu-tab {
+    display: inline-flex;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .file-menu-content {
+    overflow: visible;
+  }
 }
 
 .file-menu-content h3 {

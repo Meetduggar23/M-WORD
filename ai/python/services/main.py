@@ -5,7 +5,7 @@ Quill AI Service - FastAPI Server
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+import os
 
 from .ai_service import (
     get_ai_service,
@@ -21,11 +21,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS middleware
+# CORS middleware. Keep the default local-only; deployments should explicitly
+# provide the origins that are allowed to call the service.
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("QUILL_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

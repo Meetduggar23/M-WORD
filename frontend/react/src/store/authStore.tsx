@@ -21,7 +21,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   signup: (name: string, email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
-  updateProfile: (data: Partial<Pick<User, 'name' | 'email' | 'avatar'>>) => void;
+  updateProfile: (data: Partial<Pick<User, 'name' | 'email' | 'avatar'>>) => { ok: boolean; error?: string };
   forgotPassword: (email: string) => Promise<{ ok: boolean; message: string }>;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -113,7 +113,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await new Promise((r) => setTimeout(r, 400));
 
     const users = loadUsers();
-    const found = users.find((u) => u.email === email.toLowerCase());
+    const found = users.find((u) => u.email === email.trim().toLowerCase());
 
     if (!found) {
       setIsLoading(false);
@@ -146,7 +146,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await new Promise((r) => setTimeout(r, 400));
 
     const users = loadUsers();
-    if (users.some((u) => u.email === email.toLowerCase())) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!validateEmail(normalizedEmail)) {
+      setIsLoading(false);
+      return { ok: false, error: 'Please enter a valid email address.' };
+    }
+    if (users.some((u) => u.email === normalizedEmail)) {
       setIsLoading(false);
       return { ok: false, error: 'An account with this email already exists. Please log in.' };
     }
@@ -161,7 +166,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const storedUser: StoredUser = {
       id,
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password,
       createdAt: new Date().toISOString(),
     };
@@ -189,30 +194,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     saveSession(null);
   }, []);
 
-  const updateProfile = useCallback((data: Partial<Pick<User, 'name' | 'email' | 'avatar'>>) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      const updated: User = {
-        ...prev,
-        ...(data.name !== undefined ? { name: data.name, initials: getInitials(data.name) } : {}),
-        ...(data.email !== undefined ? { email: data.email } : {}),
-        ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
-      };
-      saveSession(updated);
+  const updateProfile = useCallback((data: Partial<Pick<User, 'name' | 'email' | 'avatar'>>): { ok: boolean; error?: string } => {
+    if (!user) return { ok: false, error: 'No active account.' };
+    const normalizedEmail = data.email?.trim().toLowerCase();
+    const users = loadUsers();
+    if (normalizedEmail && users.some((u) => u.email === normalizedEmail && u.id !== user.id)) {
+      return { ok: false, error: 'An account with this email already exists.' };
+    }
 
-      // Also update the stored users list
-      const users = loadUsers();
-      const idx = users.findIndex((u) => u.id === prev.id);
-      if (idx >= 0) {
-        if (data.name !== undefined) users[idx].name = data.name;
-        if (data.email !== undefined) users[idx].email = data.email;
-        if (data.avatar !== undefined) users[idx].avatar = data.avatar;
-        saveUsers(users);
-      }
+    const updated: User = {
+      ...user,
+      ...(data.name !== undefined ? { name: data.name, initials: getInitials(data.name) } : {}),
+      ...(normalizedEmail !== undefined ? { email: normalizedEmail } : {}),
+      ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
+    };
+    saveSession(updated);
 
-      return updated;
-    });
-  }, []);
+    // Also update the stored users list
+    const idx = users.findIndex((u) => u.id === user.id);
+    if (idx >= 0) {
+      if (data.name !== undefined) users[idx].name = data.name;
+      if (normalizedEmail !== undefined) users[idx].email = normalizedEmail;
+      if (data.avatar !== undefined) users[idx].avatar = data.avatar;
+      saveUsers(users);
+    }
+
+    setUser(updated);
+    return { ok: true };
+  }, [user]);
 
   const forgotPassword = useCallback(async (email: string): Promise<{ ok: boolean; message: string }> => {
     setIsLoading(true);

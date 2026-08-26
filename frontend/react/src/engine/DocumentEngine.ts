@@ -840,6 +840,87 @@ export function generateId(): ElementId {
   return `el_${Date.now()}_${++idCounter}`;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[character] ?? character));
+}
+
+function safeLink(value: string): string {
+  const trimmed = value.trim();
+  return /^(https?:|mailto:|tel:|#|\/)/i.test(trimmed) ? trimmed : '#';
+}
+
+function htmlBorder(border?: Border): string {
+  if (!border || border.style === 'none') return '';
+  const style = border.style === 'double' ? 'double' :
+    ['dashed', 'dotted', 'dashDot', 'dashDotDot', 'wave'].includes(border.style) ? 'dashed' : 'solid';
+  return `border:${Math.max(0, border.size)}px ${style} ${border.color || '#000000'};`;
+}
+
+function htmlRunStyle(formatting: RunFormatting): string {
+  let style = '';
+  if (formatting.bold) style += 'font-weight:bold;';
+  if (formatting.italic) style += 'font-style:italic;';
+  const decorations = [formatting.underline ? 'underline' : '', formatting.strikethrough || formatting.doubleStrikethrough ? 'line-through' : ''].filter(Boolean);
+  if (decorations.length) style += `text-decoration:${decorations.join(' ')};`;
+  if (formatting.fontFamily) style += `font-family:${formatting.fontFamily};`;
+  // The editor renders run sizes in CSS pixels, so do not convert these to pt.
+  if (formatting.fontSize) style += `font-size:${formatting.fontSize}px;`;
+  if (formatting.color) style += `color:${formatting.color};`;
+  if (formatting.highlight) style += `background-color:${formatting.highlight};`;
+  if (formatting.superscript) style += 'vertical-align:super;font-size:0.8em;';
+  if (formatting.subscript) style += 'vertical-align:sub;font-size:0.8em;';
+  if (formatting.smallCaps) style += 'font-variant:small-caps;';
+  if (formatting.allCaps) style += 'text-transform:uppercase;';
+  if (formatting.shadow) style += 'text-shadow:1px 1px 2px rgba(0,0,0,.3);';
+  if (formatting.outline) style += '-webkit-text-stroke:1px currentColor;';
+  if (formatting.characterSpacing) style += `letter-spacing:${formatting.characterSpacing / 20}px;`;
+  if (formatting.hidden) style += 'visibility:hidden;';
+  return style;
+}
+
+function htmlRuns(runs: TextRun[]): string {
+  return runs.map((run) => {
+    const style = htmlRunStyle(run.formatting);
+    const content = escapeHtml(run.text);
+    const linked = run.hyperlink
+      ? `<a href="${escapeHtml(safeLink(run.hyperlink.url))}"${run.hyperlink.tooltip ? ` title="${escapeHtml(run.hyperlink.tooltip)}"` : ''} style="${escapeHtml(`${style}${run.hyperlink.color ? `color:${run.hyperlink.color};` : ''}${run.hyperlink.underline === false ? 'text-decoration:none;' : 'text-decoration:underline;'}`)}">${content}</a>`
+      : content;
+    return style && !run.hyperlink ? `<span style="${escapeHtml(style)}">${linked}</span>` : linked;
+  }).join('');
+}
+
+function htmlParagraphStyle(para: Paragraph): string {
+  const fmt = para.formatting;
+  let style = `text-align:${fmt.alignment};line-height:${fmt.lineSpacing};margin:${fmt.spaceBefore}px 0 ${fmt.spaceAfter}px;`;
+  style += `padding-left:${fmt.leftIndent}px;padding-right:${fmt.rightIndent}px;text-indent:${fmt.firstLineIndent}px;direction:${fmt.textDirection};`;
+  if (fmt.bidi) style += 'unicode-bidi:embed;';
+  if (fmt.pageBreakBefore) style += 'break-before:page;page-break-before:always;';
+  if (fmt.keepLinesTogether) style += 'break-inside:avoid;page-break-inside:avoid;';
+  if (fmt.keepWithNext) style += 'break-after:avoid;page-break-after:avoid;';
+  if (fmt.paragraphShading.fill !== 'auto' && fmt.paragraphShading.pattern !== 'clear') style += `background:${fmt.paragraphShading.fill};`;
+  const borders = fmt.paragraphBorders;
+  style += htmlBorder(borders.top).replace(/^border:/, 'border-top:');
+  style += htmlBorder(borders.bottom).replace(/^border:/, 'border-bottom:');
+  style += htmlBorder(borders.left).replace(/^border:/, 'border-left:');
+  style += htmlBorder(borders.right).replace(/^border:/, 'border-right:');
+  return style;
+}
+
+function isValidDocument(value: unknown): value is QuillDocument {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<QuillDocument>;
+  if (typeof candidate.id !== 'string' || !candidate.metadata || typeof candidate.metadata !== 'object') return false;
+  if (typeof candidate.metadata.title !== 'string' || !Array.isArray(candidate.sections) || candidate.sections.length === 0) return false;
+  return candidate.sections.every((section) => (
+    !!section && typeof section === 'object' && typeof section.id === 'string' && Array.isArray(section.blocks) &&
+    section.blocks.every((block) => (
+      !!block && typeof block === 'object' && typeof block.id === 'string' && typeof block.type === 'string'
+    ))
+  ));
+}
+
 function defaultPageMargins(): PageMargins {
   return {
     top: 1440,
@@ -3559,10 +3640,13 @@ export class DocumentEngine {
 
   deserialize(json: string): void {
     try {
+      const parsed: unknown = JSON.parse(json);
+      if (!isValidDocument(parsed)) throw new Error('Document data is missing required fields.');
       this.pushUndo();
-      this.document = JSON.parse(json) as QuillDocument;
-      if (this.document.sections[0]?.blocks[0]) {
-        this.cursor = { blockId: this.document.sections[0].blocks[0].id, runIndex: 0, offset: 0 };
+      this.document = parsed;
+      const firstBlock = this.document.sections[0].blocks[0];
+      if (firstBlock) {
+        this.cursor = { blockId: firstBlock.id, runIndex: 0, offset: 0 };
       }
       this.selection = { start: { ...this.cursor }, end: { ...this.cursor }, isCollapsed: true };
       this.emitAll();
@@ -3574,85 +3658,118 @@ export class DocumentEngine {
   // ─── Export ────────────────────────────────────────────────────────────
 
   exportAsHTML(): string {
-    let html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
-      this.document.metadata.title + '</title></head><body style="font-family:Calibri,sans-serif;max-width:816px;margin:0 auto;">';
+    const setup = this.document.pageSetup;
+    const pageWidth = Math.max(1, setup.pageWidth / 15);
+    const pageHeight = Math.max(1, setup.pageHeight / 15);
+    const margins = setup.pageMargins;
+    let html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="generator" content="WORD">' +
+      `<title>${escapeHtml(this.document.metadata.title)}</title><style>@page{size:${pageWidth}px ${pageHeight}px;margin:0;}` +
+      `html,body{margin:0;padding:0;background:#f3f4f6;}body{font-family:Calibri,"Segoe UI",sans-serif;color:#242424;}` +
+      `.word-section{width:${pageWidth}px;margin:0 auto;page-break-after:always;}` +
+      `.word-page{box-sizing:border-box;width:${pageWidth}px;min-height:${pageHeight}px;padding:${margins.top / 15}px ${margins.right / 15}px ${margins.bottom / 15}px ${margins.left / 15}px;background:#fff;font-size:11pt;line-height:1.15;}` +
+      `.word-header,.word-footer{box-sizing:border-box;width:${pageWidth}px;padding-left:${margins.left / 15}px;padding-right:${margins.right / 15}px;font-size:9px;}` +
+      `.word-footer{padding-top:${setup.footerDistance / 15}px;}.word-header{padding-bottom:${setup.headerDistance / 15}px;}` +
+      `.word-table{border-collapse:collapse;width:100%;table-layout:${this.document.sections[0]?.blocks.some(b => b.type === 'table' && (b as Table).tableLayout === 'fixed') ? 'fixed' : 'auto'};}` +
+      `.word-table td{box-sizing:border-box;vertical-align:top;}` +
+      `.page-number span:after{content:counter(page);}</style></head><body>`;
 
     for (const section of this.document.sections) {
+      const header = this.document.headers.find(h => h.default) || this.document.headers[0];
+      const footer = this.document.footers.find(f => f.default) || this.document.footers[0];
+      html += '<div class="word-section">';
+      if (header?.paragraphs.length) {
+        html += `<div class="word-header" style="text-align:${header.alignment};">${header.paragraphs.map(p => `<div style="${escapeHtml(htmlParagraphStyle(p))}">${htmlRuns(p.textRuns) || '&nbsp;'}</div>`).join('')}</div>`;
+      }
+      html += '<div class="word-page">';
       for (const block of section.blocks) {
         if (block.type === 'paragraph') {
           const para = block as Paragraph;
-          const align = para.formatting.alignment !== 'left' ? `text-align:${para.formatting.alignment};` : '';
-          const runs = para.textRuns.map(r => {
-            let style = '';
-            if (r.formatting.bold) style += 'font-weight:bold;';
-            if (r.formatting.italic) style += 'font-style:italic;';
-            if (r.formatting.underline) style += 'text-decoration:underline;';
-            if (r.formatting.strikethrough) style += 'text-decoration:line-through;';
-            if (r.formatting.fontFamily) style += `font-family:${r.formatting.fontFamily};`;
-            if (r.formatting.fontSize) style += `font-size:${r.formatting.fontSize}pt;`;
-            if (r.formatting.color) style += `color:${r.formatting.color};`;
-            if (r.formatting.highlight) style += `background-color:${r.formatting.highlight};`;
-            if (r.hyperlink) return `<a href="${r.hyperlink.url}" style="${style}">${r.text}</a>`;
-            return style ? `<span style="${style}">${r.text}</span>` : r.text;
-          }).join('');
+          const runs = htmlRuns(para.textRuns);
 
           let tag = 'p';
-          let tagStyle = align;
+          let tagStyle = htmlParagraphStyle(para);
           if (para.style.startsWith('Heading')) {
             const level = parseInt(para.style.replace('Heading', ''), 10) || 1;
             tag = `h${level}`;
             const s = this.document.styles.find(st => st.name === para.style);
             if (s) {
-              tagStyle += `font-family:${s.runFormatting.fontFamily || 'Calibri Light'};`;
-              tagStyle += `color:${s.runFormatting.color || '#2F5496'};`;
+              tagStyle += htmlRunStyle({ ...s.runFormatting, fontFamily: s.runFormatting.fontFamily || 'Calibri Light', color: s.runFormatting.color || '#2F5496' });
             }
           } else if (para.style === 'Title') {
             tag = 'h1';
-            tagStyle += 'text-align:center;font-family:Calibri Light;font-size:28pt;';
+            tagStyle += 'text-align:center;font-family:Calibri Light;font-size:28px;';
           } else if (para.style === 'Subtitle') {
             tag = 'p';
-            tagStyle += 'text-align:center;font-size:18pt;color:#5A5A5A;font-style:italic;';
+            tagStyle += 'text-align:center;font-size:18px;color:#5A5A5A;font-style:italic;';
+          }
+          const styleDefinition = this.document.styles.find(st => st.name === para.style);
+          if (styleDefinition && !para.style.startsWith('Heading') && para.style !== 'Title' && para.style !== 'Subtitle') {
+            tagStyle += htmlRunStyle(styleDefinition.runFormatting);
           }
 
-          html += `<${tag} style="${tagStyle}">${runs || '&nbsp;'}</${tag}>`;
+          const list = para.formatting.listFormat;
+          const prefix = list.type === 'bullet' ? '• ' : list.type === 'numbered' ? `${list.startValue || 1}. ` : '';
+          html += `<${tag} style="${escapeHtml(tagStyle)}">${prefix}${runs || '&nbsp;'}</${tag}>`;
         } else if (block.type === 'table') {
           const table = block as Table;
-          html += '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;">';
+          const tableWidth = table.tableWidthType === 'fixed' && table.tableWidth ? `${table.tableWidth / 15}px` : '100%';
+          html += `<table class="word-table" style="width:${tableWidth};margin-left:${table.indentation / 15}px;">`;
           for (const row of table.rows) {
             html += '<tr>';
             for (const cell of row.cells) {
-              const cellText = cell.textRuns.map(r => r.text).join('');
-              html += `<td rowspan="${cell.rowSpan}" colspan="${cell.colSpan}">${cellText || '&nbsp;'}</td>`;
+              const cellStyle = [
+                `padding:${cell.margins.top / 15}px ${cell.margins.right / 15}px ${cell.margins.bottom / 15}px ${cell.margins.left / 15}px;`,
+                `vertical-align:${cell.verticalAlignment};`,
+                cell.width ? `width:${cell.width / 15}px;` : '',
+                cell.noWrap ? 'white-space:nowrap;' : '',
+                cell.backgroundColor ? `background-color:${cell.backgroundColor};` : '',
+                htmlBorder(cell.borders.top).replace(/^border:/, 'border-top:'),
+                htmlBorder(cell.borders.bottom).replace(/^border:/, 'border-bottom:'),
+                htmlBorder(cell.borders.left).replace(/^border:/, 'border-left:'),
+                htmlBorder(cell.borders.right).replace(/^border:/, 'border-right:'),
+              ].join('');
+              const cellContent = cell.paragraphs.length > 0
+                ? cell.paragraphs.map(p => `<div style="${escapeHtml(htmlParagraphStyle(p))}">${htmlRuns(p.textRuns) || '&nbsp;'}</div>`).join('')
+                : htmlRuns(cell.textRuns);
+              html += `<td rowspan="${Math.max(1, cell.rowSpan)}" colspan="${Math.max(1, cell.colSpan)}" style="${escapeHtml(cellStyle)}">${cellContent || '&nbsp;'}</td>`;
             }
             html += '</tr>';
           }
           html += '</table>';
         } else if (block.type === 'image') {
           const img = block as ImageBlock;
-          html += `<div style="text-align:${img.alignment};margin:12px 0;"><img src="${img.src}" alt="${img.altText}" style="width:${img.width}px;height:${img.height}px;" /></div>`;
+          const imageStyle = `width:${Math.max(0, img.width)}px;height:${Math.max(0, img.height)}px;object-fit:contain;transform:rotate(${img.rotation || 0}deg);${img.shadow ? 'box-shadow:2px 2px 6px rgba(0,0,0,.25);' : ''}${img.border ? htmlBorder(img.border) : ''}`;
+          html += `<div style="text-align:${escapeHtml(img.alignment)};margin:12px 0;"><img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.altText)}" title="${escapeHtml(img.title)}" style="${escapeHtml(imageStyle)}" />${img.description ? `<div>${escapeHtml(img.description)}</div>` : ''}</div>`;
         } else if (block.type === 'shape') {
           const shape = block as ShapeBlock;
-          html += `<div style="width:${shape.width}px;height:${shape.height}px;background:${shape.fill.color || '#4472C4'};border:2px solid ${shape.outline.color};display:inline-block;margin:8px;text-align:center;line-height:${shape.height}px;">${shape.text || ''}</div>`;
+          html += `<div style="width:${Math.max(0, shape.width)}px;height:${Math.max(0, shape.height)}px;background:${escapeHtml(shape.fill.color || '#4472C4')};border:2px solid ${escapeHtml(shape.outline.color)};display:inline-block;margin:8px;text-align:center;line-height:${Math.max(0, shape.height)}px;">${escapeHtml(shape.text || '')}</div>`;
         } else if (block.type === 'horizontalRule') {
           html += '<hr />';
         } else if (block.type === 'pageBreak') {
           html += '<div style="page-break-after:always;"></div>';
         } else if (block.type === 'equation') {
           const eq = block as EquationBlock;
-          html += `<div style="text-align:center;font-style:italic;font-family:Cambria Math,serif;font-size:18px;margin:12px 0;">${eq.latex}</div>`;
+          html += `<div style="text-align:center;font-style:italic;font-family:Cambria Math,serif;font-size:18px;margin:12px 0;">${escapeHtml(eq.latex)}</div>`;
         } else if (block.type === 'chart') {
           html += '<div style="text-align:center;padding:20px;background:#f5f5f5;border:1px solid #ddd;margin:12px 0;">[Chart: ' + (block as ChartBlock).chartType + ']</div>';
         } else if (block.type === 'smartart') {
           html += '<div style="text-align:center;padding:20px;background:#f5f5f5;border:1px solid #ddd;margin:12px 0;">[SmartArt: ' + (block as SmartArtBlock).layout + ']</div>';
         }
       }
+      html += '</div>';
+      if (footer?.paragraphs.length || this.document.pageNumbers.some(p => p.show && p.position === 'footer')) {
+        const footerText = footer?.paragraphs.map(p => `<div style="${escapeHtml(htmlParagraphStyle(p))}">${htmlRuns(p.textRuns) || '&nbsp;'}</div>`).join('') || '';
+        const pageNumber = this.document.pageNumbers.find(p => p.show && p.position === 'footer');
+        html += `<div class="word-footer" style="text-align:${pageNumber?.alignment || footer?.alignment || 'center'};">${footerText}${pageNumber ? '<div class="page-number">Page <span></span></div>' : ''}</div>`;
+      }
+      html += '</div>';
     }
 
     // Footnotes
     if (this.document.footnotes.length > 0) {
       html += '<div style="border-top:1px solid #ccc;margin-top:24px;padding-top:8px;">';
       for (const fn of this.document.footnotes) {
-        html += `<p style="font-size:9pt;"><sup>${fn.marker}</sup> ${fn.text}</p>`;
+        html += `<p style="font-size:9pt;"><sup>${escapeHtml(String(fn.marker))}</sup> ${escapeHtml(fn.text)}</p>`;
       }
       html += '</div>';
     }
@@ -3661,7 +3778,7 @@ export class DocumentEngine {
     if (this.document.endnotes.length > 0) {
       html += '<div style="border-top:1px solid #ccc;margin-top:12px;padding-top:8px;">';
       for (const en of this.document.endnotes) {
-        html += `<p style="font-size:9pt;"><sup>${en.marker}</sup> ${en.text}</p>`;
+        html += `<p style="font-size:9pt;"><sup>${escapeHtml(String(en.marker))}</sup> ${escapeHtml(en.text)}</p>`;
       }
       html += '</div>';
     }

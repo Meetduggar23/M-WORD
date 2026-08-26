@@ -23,6 +23,9 @@
 }
 
 .title-logo {
+  width: 20px;
+  height: 26px;
+  object-fit: contain;
   border-radius: 4px;
   flex-shrink: 0;
 }
