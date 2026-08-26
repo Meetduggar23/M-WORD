@@ -4,6 +4,7 @@ import {
   Paragraph, TextRun, Table, ImageBlock, Block, ShapeBlock, ChartBlock,
   SmartArtBlock, EquationBlock, HorizontalRule, PageBreak, CursorPosition,
 } from '../../engine/DocumentEngine';
+import { analyzePaste } from '../../features/text/smartPaste';
 import './DocumentCanvas.css';
 
 interface DocumentCanvasProps {
@@ -332,6 +333,20 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
+    const html = e.clipboardData.getData('text/html') || undefined;
+    if (!text && !html) return;
+
+    // Smart paste: offer conversion options for foreign/rich content
+    try {
+      const candidate = analyzePaste(text, html);
+      if (candidate.looksForeign || candidate.looksLikeTable || candidate.looksLikeKeyValue) {
+        window.dispatchEvent(new CustomEvent('word:smart-paste', { detail: candidate }));
+        return;
+      }
+    } catch {
+      /* fall through to plain insert */
+    }
+
     if (text) insertText(text);
   }, [insertText]);
 

@@ -13,6 +13,121 @@
   animation: ft-pop 180ms var(--ease-spring);
 }
 
+/* ---------- Dropdown menus inside the toolbar ---------- */
+
+.ft-menu-wrap {
+  position: relative;
+  display: flex;
+}
+
+.ft-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 720;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: word-pop-in 140ms var(--ease-out);
+}
+
+.ft-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.ft-menu-item:hover {
+  background: var(--hover-color);
+}
+
+.ft-menu-item svg {
+  color: var(--accent-color);
+}
+
+/* ---------- Table analysis panel ---------- */
+
+.ft-table-panel {
+  position: fixed;
+  z-index: 710;
+  width: min(420px, calc(100vw - 40px));
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: word-pop-in 150ms var(--ease-out);
+}
+
+.ftp-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--accent-softer);
+}
+
+.ftp-header svg {
+  color: var(--accent-color);
+}
+
+.ftp-close {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.ftp-close:hover {
+  background: var(--hover-color);
+}
+
+.ftp-body {
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.ftp-loading {
+  color: var(--text-muted);
+}
+
+.ftp-error {
+  color: #c42b1c;
+}
+
+.ftp-note {
+  padding: 6px 12px 9px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 @keyframes ft-pop {
   from {
     opacity: 0;

@@ -15,18 +15,28 @@ import {
   FileText, BookOpenCheck, CircleDot, Check, X, Undo2, Redo2,
   LayoutTemplate, Droplets, Columns3, RectangleVertical, RectangleHorizontal,
   Footprints, MessageSquarePlus, MessagesSquare, CheckCheck,
-  Keyboard, Info, MailPlus, Type, Minimize2,
+  Keyboard, Info, MailPlus, Type,
+  ChevronDown, ChevronUp, PenLine, Pencil, Eraser, Lasso,
+  Mail, Tag, Users, Reply, Send, Database,
+  Code2, FileCode2, ShieldCheck, Braces, FileDown,
+  Stethoscope, Brush, FlaskConical, BarChart3, History, GitCompare,
+  Command as CommandIcon,
 } from 'lucide-react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
-import { Paragraph, Alignment, ShapeType, PageSize } from '../../engine/DocumentEngine';
+import { Paragraph, Alignment, ShapeType, PageSize, QuillDocument } from '../../engine/DocumentEngine';
 import { useUI } from '../../store/uiStore';
+import { useToast } from '../toast/Toast';
+import { exportMarkdown, parseMarkdown } from '../../features/text/markdown';
+import { renumberReferences, nextNumberFor } from '../../features/intel/smartRefs';
 import {
   RibbonGroup, RBRow, RBSep, RibButton, RibBigButton, RibListButton,
   RibCombo, RibDropdown, MenuItemRow, ColorPalette,
 } from './primitives';
 import './Ribbon.css';
 
-type RibbonTab = 'File' | 'Home' | 'Insert' | 'Design' | 'Layout' | 'References' | 'Review' | 'View' | 'AI' | 'Help';
+type RibbonTab =
+  | 'File' | 'Home' | 'Insert' | 'Draw' | 'Design' | 'Layout'
+  | 'References' | 'Mailings' | 'Review' | 'View' | 'Developer' | 'Help';
 
 interface RibbonProps {
   onOpenFileMenu?: () => void;
@@ -141,7 +151,10 @@ export const Ribbon: React.FC<RibbonProps> = ({ onOpenFileMenu }) => {
   const engine = useDocumentEngine();
   const ui = useUI();
 
-  const tabs: RibbonTab[] = ['File', 'Home', 'Insert', 'Design', 'Layout', 'References', 'Review', 'View', 'AI', 'Help'];
+  const tabs: RibbonTab[] = [
+    'File', 'Home', 'Insert', 'Draw', 'Design', 'Layout',
+    'References', 'Mailings', 'Review', 'View', 'Developer', 'Help',
+  ];
 
   return (
     <div className="ribbon-container">
@@ -161,6 +174,17 @@ export const Ribbon: React.FC<RibbonProps> = ({ onOpenFileMenu }) => {
           ))}
         </div>
         <button
+          className="ribbon-palette-hint"
+          onClick={() => ui.openDialog('commandPalette')}
+          title="Command palette — search commands or ask in natural language (Ctrl+K)"
+          aria-label="Open command palette"
+          type="button"
+        >
+          <CommandIcon size={12} strokeWidth={2.1} />
+          <span>Commands</span>
+          <kbd>Ctrl+K</kbd>
+        </button>
+        <button
           className="ribbon-collapse"
           onClick={ui.toggleRibbonCollapsed}
           title={ui.ribbonCollapsed ? 'Pin the ribbon' : 'Collapse the ribbon'}
@@ -168,7 +192,7 @@ export const Ribbon: React.FC<RibbonProps> = ({ onOpenFileMenu }) => {
           aria-expanded={!ui.ribbonCollapsed}
           type="button"
         >
-          {ui.ribbonCollapsed ? <Maximize size={13} strokeWidth={2} /> : <Minimize2 size={13} strokeWidth={2} />}
+          {ui.ribbonCollapsed ? <ChevronDown size={14} strokeWidth={2.2} /> : <ChevronUp size={14} strokeWidth={2.2} />}
         </button>
       </div>
 
@@ -176,12 +200,14 @@ export const Ribbon: React.FC<RibbonProps> = ({ onOpenFileMenu }) => {
         <div className="ribbon-content">
           {activeTab === 'Home' && <HomeTab engine={engine} />}
           {activeTab === 'Insert' && <InsertTab engine={engine} />}
+          {activeTab === 'Draw' && <DrawTab />}
           {activeTab === 'Design' && <DesignTab engine={engine} />}
           {activeTab === 'Layout' && <LayoutTab engine={engine} />}
           {activeTab === 'References' && <ReferencesTab engine={engine} />}
+          {activeTab === 'Mailings' && <MailingsTab />}
           {activeTab === 'Review' && <ReviewTab engine={engine} />}
           {activeTab === 'View' && <ViewTab />}
-          {activeTab === 'AI' && <AITab />}
+          {activeTab === 'Developer' && <DeveloperTab />}
           {activeTab === 'Help' && <HelpTab />}
         </div>
       )}
@@ -190,6 +216,54 @@ export const Ribbon: React.FC<RibbonProps> = ({ onOpenFileMenu }) => {
 };
 
 type Engine = ReturnType<typeof useDocumentEngine>;
+
+/* ─── Markdown helpers shared by Developer tab ────────────────────────────── */
+
+function insertMarkdownBlocks(engine: Engine, md: string): void {
+  const blocks = parseMarkdown(md);
+  for (const b of blocks) {
+    switch (b.kind) {
+      case 'heading':
+        engine.insertText(b.text);
+        engine.applyStyle(`Heading${Math.min(3, b.level ?? 1)}`);
+        engine.insertParagraph();
+        break;
+      case 'bullet':
+        engine.insertText(b.text);
+        engine.setBulletList();
+        engine.insertParagraph();
+        break;
+      case 'numbered':
+        engine.insertText(b.text);
+        engine.setNumberedList();
+        engine.insertParagraph();
+        break;
+      case 'code':
+        engine.insertText(b.text);
+        engine.setFontFamily('Consolas');
+        engine.insertParagraph();
+        break;
+      case 'table':
+        if (b.rows?.length) engine.insertTableWithData(b.rows);
+        break;
+      case 'quote':
+        engine.insertText(b.text);
+        engine.applyStyle('Quote');
+        engine.insertParagraph();
+        break;
+      case 'hr':
+        engine.insertHorizontalRule();
+        break;
+      default:
+        engine.insertText(b.text);
+        engine.insertParagraph();
+    }
+  }
+}
+
+function exportMarkdownFromDoc(doc: QuillDocument): string {
+  return exportMarkdown(doc);
+}
 
 /* ─── Helpers shared across tabs ─────────────────────────────────────────── */
 
@@ -431,29 +505,53 @@ const HomeTab: React.FC<{ engine: Engine }> = ({ engine }) => {
 
       {/* Styles */}
       <RibbonGroup label="Styles" grow>
-        <div className="style-gallery">
-          {galleryStyles.map((style) => (
-            <button
-              key={style.id}
-              className={`style-card${currentStyle === style.name ? ' active' : ''}`}
-              onClick={() => engine.applyStyle(style.name)}
-              title={`Apply ${style.displayName}`}
-              type="button"
-            >
-              <span
-                className="style-card-text"
-                style={{
-                  fontFamily: style.runFormatting.fontFamily || 'Calibri',
-                  fontSize: Math.min(style.runFormatting.fontSize || 11, 15),
-                  fontWeight: style.runFormatting.bold ? 700 : 400,
-                  fontStyle: style.runFormatting.italic ? 'italic' : 'normal',
-                  color: style.runFormatting.color || 'var(--text-primary)',
-                }}
+        <div className="style-gallery-wrap">
+          <div className="style-gallery">
+            {galleryStyles.map((style) => (
+              <button
+                key={style.id}
+                className={`style-card${currentStyle === style.name ? ' active' : ''}`}
+                onClick={() => engine.applyStyle(style.name)}
+                title={`Apply ${style.displayName}`}
+                type="button"
               >
-                {style.displayName}
-              </span>
-            </button>
-          ))}
+                <span
+                  className="style-card-text"
+                  style={{
+                    fontFamily: style.runFormatting.fontFamily || 'Calibri',
+                    fontSize: Math.min(style.runFormatting.fontSize || 11, 15),
+                    fontWeight: style.runFormatting.bold ? 700 : 400,
+                    fontStyle: style.runFormatting.italic ? 'italic' : 'normal',
+                    color: style.runFormatting.color || 'var(--text-primary)',
+                  }}
+                >
+                  {style.displayName}
+                </span>
+              </button>
+            ))}
+          </div>
+          <RibDropdown
+            width={210}
+            align="right"
+            trigger={
+              <button className="style-gallery-more" title="More styles" aria-label="More styles" type="button">
+                <ChevronDown size={14} strokeWidth={2.2} />
+              </button>
+            }
+          >
+            {(close) => (
+              <>
+                {engine.styles.filter((s) => s.isBuiltIn && s.isVisible).map((style) => (
+                  <MenuItemRow
+                    key={style.id}
+                    label={style.displayName}
+                    selected={currentStyle === style.name}
+                    onClick={() => { engine.applyStyle(style.name); close(); }}
+                  />
+                ))}
+              </>
+            )}
+          </RibDropdown>
         </div>
       </RibbonGroup>
 
@@ -841,6 +939,22 @@ const ViewTab: React.FC = () => {
         </RBRow>
       </RibbonGroup>
 
+      <RibbonGroup label="Intelligence">
+        <RBRow className="rb-col">
+          <RibListButton icon={<Stethoscope size={16} strokeWidth={1.8} />} label="Document Health" active={ui.rightPanel === 'health'} onClick={() => ui.toggleRightPanel('health')} />
+          <RibListButton icon={<Brush size={16} strokeWidth={1.8} />} label="Clean Up Document" onClick={() => ui.openDialog('cleanup')} />
+          <RibListButton icon={<FlaskConical size={16} strokeWidth={1.8} />} label="Run Document Test" onClick={() => ui.openDialog('documentTest')} />
+          <RibListButton icon={<BarChart3 size={16} strokeWidth={1.8} />} label="Analytics" onClick={() => ui.openDialog('analytics')} />
+        </RBRow>
+      </RibbonGroup>
+
+      <RibbonGroup label="History">
+        <RBRow className="rb-col">
+          <RibListButton icon={<History size={16} strokeWidth={1.8} />} label="Document Timeline" onClick={() => ui.openDialog('timeline')} />
+          <RibListButton icon={<GitCompare size={16} strokeWidth={1.8} />} label="Compare Versions" onClick={() => ui.openDialog('diff')} />
+        </RBRow>
+      </RibbonGroup>
+
       <RibbonGroup label="Zoom">
         <RBRow className="rb-col">
           <RibListButton icon={<Maximize size={16} strokeWidth={1.8} />} label="Fit Width" onClick={fitWidth} />
@@ -852,41 +966,189 @@ const ViewTab: React.FC = () => {
   );
 };
 
-/* ─── AI ──────────────────────────────────────────────────────────────────── */
+/* ─── Draw ────────────────────────────────────────────────────────────────── */
 
-const AITab: React.FC = () => {
-  const { setRightPanel } = useUI();
+const DrawTab: React.FC = () => {
+  const ui = useUI();
 
-  const actions = [
-    { label: 'Rewrite', desc: 'Rephrase the selection or document' },
-    { label: 'Summarize', desc: 'Condense into key points' },
-    { label: 'Improve', desc: 'Writing review with suggestions' },
-    { label: 'Make concise', desc: 'Tighten wordy passages' },
-    { label: 'Expand', desc: 'Develop ideas further' },
-    { label: 'Explain', desc: 'Plain-language explanation' },
-    { label: 'Ask Document', desc: 'Ask questions about this document' },
-    { label: 'Analyze', desc: 'Analyze structure and readability' },
+  const tools = [
+    { icon: <PenLine size={16} strokeWidth={1.8} />, label: 'Pen', hint: 'Freehand ink pen' },
+    { icon: <Pencil size={16} strokeWidth={1.8} />, label: 'Pencil', hint: 'Textured pencil strokes' },
+    { icon: <Highlighter size={16} strokeWidth={1.8} />, label: 'Highlighter', hint: 'Thick translucent strokes' },
+    { icon: <Eraser size={16} strokeWidth={1.8} />, label: 'Eraser', hint: 'Remove ink strokes' },
+    { icon: <Lasso size={16} strokeWidth={1.8} />, label: 'Lasso Select', hint: 'Select ink objects' },
   ];
 
   return (
     <div className="ribbon-groups">
-      <RibbonGroup label="AI Actions">
-        <div className="ai-actions-grid">
-          {actions.map((a) => (
-            <RibListButton
-              key={a.label}
-              icon={<Sparkles size={15} strokeWidth={1.9} />}
-              label={a.label}
-              title={a.desc}
-              onClick={() => setRightPanel('ai')}
-            />
+      <RibbonGroup label="Tools">
+        <div className="draw-tools-row">
+          {tools.map((t) => (
+            <button
+              key={t.label}
+              className="draw-tool"
+              onClick={() => ui.setFocusMode(true)}
+              title={`${t.hint} — opens Focus Mode`}
+              type="button"
+            >
+              <span className="draw-tool-icon">{t.icon}</span>
+              <span className="draw-tool-label">{t.label}</span>
+            </button>
           ))}
         </div>
       </RibbonGroup>
+      <RibbonGroup label="Ink Canvas">
+        <RBRow>
+          <RibListButton
+            icon={<Maximize size={16} strokeWidth={1.8} />}
+            label="Distraction-free canvas"
+            onClick={() => ui.setFocusMode(true)}
+          />
+        </RBRow>
+      </RibbonGroup>
       <div className="ai-ribbon-note">
         <Sparkles size={13} strokeWidth={2} />
-        Runs locally on your device — your text never leaves this machine.
+        Inking is on the roadmap — Focus Mode gives a clean writing surface today.
       </div>
+    </div>
+  );
+};
+
+/* ─── Mailings ────────────────────────────────────────────────────────────── */
+
+const MailingsTab: React.FC = () => (
+  <div className="ribbon-groups">
+    <RibbonGroup label="Create">
+      <RBRow className="rb-col">
+        <RibListButton icon={<Mail size={16} strokeWidth={1.8} />} label="Envelopes" disabled title="Coming in a future update" />
+        <RibListButton icon={<Tag size={16} strokeWidth={1.8} />} label="Labels" disabled title="Coming in a future update" />
+      </RBRow>
+    </RibbonGroup>
+
+    <RibbonGroup label="Start Mail Merge">
+      <RBRow className="rb-col">
+        <RibDropdown
+          width={200}
+          trigger={<span className="rib-dd-full"><RibListButton icon={<Database size={16} strokeWidth={1.8} />} label="Start Mail Merge" caret /></span>}
+        >
+          {(close) => (
+            <>
+              <MenuItemRow label="Letters" onClick={close} />
+              <MenuItemRow label="E-mail Messages" onClick={close} />
+              <MenuItemRow label="Directory" onClick={close} />
+              <div className="rib-menu-sep" />
+              <MenuItemRow label="Step-by-Step Wizard…" disabled />
+            </>
+          )}
+        </RibDropdown>
+        <RibListButton icon={<Users size={16} strokeWidth={1.8} />} label="Select Recipients" disabled title="Coming in a future update" />
+      </RBRow>
+    </RibbonGroup>
+
+    <RibbonGroup label="Write & Insert Fields">
+      <RBRow className="rb-col">
+        <RibListButton icon={<SquareText size={16} strokeWidth={1.8} />} label="Address Block" disabled title="Coming in a future update" />
+        <RibListButton icon={<Reply size={16} strokeWidth={1.8} />} label="Greeting Line" disabled title="Coming in a future update" />
+        <RibListButton icon={<Type size={16} strokeWidth={1.8} />} label="Insert Merge Field" disabled title="Coming in a future update" />
+      </RBRow>
+    </RibbonGroup>
+
+    <RibbonGroup label="Finish">
+      <RBRow>
+        <RibListButton icon={<Send size={16} strokeWidth={1.8} />} label="Finish & Merge" disabled title="Coming in a future update" />
+      </RBRow>
+    </RibbonGroup>
+  </div>
+);
+
+/* ─── Developer ───────────────────────────────────────────────────────────── */
+
+const DeveloperTab: React.FC = () => {
+  const ui = useUI();
+  const engine = useDocumentEngine();
+  const { toast } = useToast();
+
+  const exportMarkdown = () => {
+    if (!engine.document) return;
+    const md = exportMarkdownFromDoc(engine.document);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${engine.document.metadata.title || 'document'}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('success', 'Markdown exported', 'Headings, lists, tables and links were preserved.');
+  };
+
+  const updateRefs = () => {
+    if (!engine.document) return;
+    const changed = engine.transformDocument((doc) => {
+      const r = renumberReferences(doc);
+      return r.refsUpdated > 0;
+    });
+    if (changed) toast('success', 'References updated', 'Captions and in-text references were renumbered.');
+    else toast('info', 'Nothing to update', 'No stale references found.');
+  };
+
+  return (
+    <div className="ribbon-groups">
+      <RibbonGroup label="Code">
+        <RBRow className="rb-col">
+          <RibListButton icon={<Code2 size={16} strokeWidth={1.8} />} label="Code Block" onClick={() => ui.openDialogWith('codeBlock', { tab: 'code' })} />
+          <RibListButton icon={<Braces size={16} strokeWidth={1.8} />} label="JSON Tools" onClick={() => ui.openDialogWith('codeBlock', { tab: 'json' })} />
+        </RBRow>
+      </RibbonGroup>
+
+      <RibbonGroup label="Markdown">
+        <RBRow className="rb-col">
+          <RibListButton icon={<FileCode2 size={16} strokeWidth={1.8} />} label="Import Markdown" onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.md,.markdown,.txt';
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              insertMarkdownBlocks(engine, await file.text());
+              toast('success', 'Markdown imported', `“${file.name}” converted into the document.`);
+            };
+            input.click();
+          }} />
+          <RibListButton icon={<FileDown size={16} strokeWidth={1.8} />} label="Export Markdown" onClick={exportMarkdown} />
+        </RBRow>
+      </RibbonGroup>
+
+      <RibbonGroup label="References">
+        <RBRow className="rb-col">
+          <RibListButton icon={<Tag size={16} strokeWidth={1.8} />} label="Insert Figure Ref" onClick={() => {
+            if (!engine.document) return;
+            engine.insertText(`Figure ${nextNumberFor(engine.document, 'figure')}`);
+          }} />
+          <RibListButton icon={<Tag size={16} strokeWidth={1.8} />} label="Insert Table Ref" onClick={() => {
+            if (!engine.document) return;
+            engine.insertText(`Table ${nextNumberFor(engine.document, 'table')}`);
+          }} />
+          <RibListButton icon={<CheckCheck size={16} strokeWidth={1.8} />} label="Update All References" onClick={updateRefs} />
+        </RBRow>
+      </RibbonGroup>
+
+      <RibbonGroup label="Mode">
+        <RBRow>
+          <RibListButton
+            icon={<ShieldCheck size={16} strokeWidth={1.8} />}
+            label={ui.devMode ? 'Developer Mode: On' : 'Developer Mode: Off'}
+            active={ui.devMode}
+            onClick={() => ui.toggleDevMode()}
+          />
+        </RBRow>
+      </RibbonGroup>
+
+      <RibbonGroup label="Document QA">
+        <RBRow className="rb-col">
+          <RibListButton icon={<FlaskConical size={16} strokeWidth={1.8} />} label="Run Document Test" onClick={() => ui.openDialog('documentTest')} />
+          <RibListButton icon={<Stethoscope size={16} strokeWidth={1.8} />} label="Document Health" onClick={() => ui.toggleRightPanel('health')} />
+        </RBRow>
+      </RibbonGroup>
     </div>
   );
 };

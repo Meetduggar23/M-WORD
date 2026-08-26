@@ -1,0 +1,28 @@
+.voice-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.voice-btn:hover {
+  background: var(--hover-color);
+  color: var(--accent-color);
+}
+
+.voice-btn.listening {
+  color: var(--accent-color);
+  background: var(--accent-soft);
+}
+
+.voice-spin {
+  animation: voice-spin 1s linear infinite;
+}
+
+@keyframes voice-spin {
+  to { transform: rotate(360deg); }
+}

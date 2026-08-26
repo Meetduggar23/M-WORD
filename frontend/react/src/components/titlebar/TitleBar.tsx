@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Menu, ChevronDown, Check, CircleDashed, Search, Undo2, Redo2, Save,
-  Share2, Settings, Minus, Square, X, FileText, Pencil, Download,
+  Share2, Minus, Square, X, FileText, Pencil, Download,
 } from 'lucide-react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
 import { useUI } from '../../store/uiStore';
 import { useToast } from '../toast/Toast';
-import { ThemeToggle } from '../theme/ThemeToggle';
 import { Logo } from '../common/Logo';
 import './TitleBar.css';
 
@@ -156,14 +155,16 @@ export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave }) => {
 
       {/* ── Center: search ── */}
       <form className="tb-search" onSubmit={handleSearch} role="search">
-        <Search size={14} strokeWidth={2} className="tb-search-icon" />
-        <input
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          placeholder="Search (Ctrl + F)"
-          aria-label="Search document"
-          onKeyDown={(e) => e.stopPropagation()}
-        />
+        <div className="tb-search-inner">
+          <Search size={14} strokeWidth={2} className="tb-search-icon" />
+          <input
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            placeholder="Search (Ctrl + F)"
+            aria-label="Search document"
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </div>
       </form>
 
       {/* ── Right: actions ── */}
@@ -178,24 +179,14 @@ export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave }) => {
           <Save size={16} strokeWidth={1.9} />
         </button>
 
-        <span className="tb-divider" aria-hidden="true" />
-
         <button className="share-pill" onClick={handleShare} title="Copy share link" aria-label="Share">
           <Share2 size={14} strokeWidth={2} />
           Share
         </button>
 
-        <ThemeToggle />
-
         <button className="profile-chip" onClick={() => openDialog('settings')} title="Account & settings" aria-label="Account and settings">
           M
         </button>
-
-        <button className="tb-icon-btn" onClick={() => openDialog('settings')} title="Settings" aria-label="Open settings" data-testid="open-settings">
-          <Settings size={16} strokeWidth={1.9} />
-        </button>
-
-        <span className="tb-divider" aria-hidden="true" />
 
         <div className="tb-window-controls">
           <button className="win-btn" title="Minimize — use your window controls" aria-label="Minimize">

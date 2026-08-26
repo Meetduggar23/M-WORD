@@ -1,8 +1,10 @@
 import React from 'react';
-import { ZoomIn, ZoomOut, Maximize2, FileText, Columns2, GalleryHorizontalEnd } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, FileText, Columns2, GalleryHorizontalEnd, SpellCheck, Lock, Cloud } from 'lucide-react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
 import { useUI, ZOOM_STEPS } from '../../store/uiStore';
 import { SaveStatus } from '../titlebar/TitleBar';
+import { aiService } from '../../features/ai/aiService';
+import { VoiceControl } from './VoiceControl';
 import './StatusBar.css';
 
 interface StatusBarProps {
@@ -20,34 +22,43 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentPage, pageCount }) 
   const sliderIndex = ZOOM_STEPS.indexOf(zoom);
   const effectiveIndex = sliderIndex >= 0 ? sliderIndex : nearestZoomIndex(zoom);
 
+  const privacy = aiService.privacy;
+
   return (
     <div className="status-bar">
       <div className="status-left">
         <span className="status-item">Page {Math.min(currentPage, pageCount)} of {pageCount}</span>
-        <span className="status-separator">|</span>
         <span className="status-item">{words.toLocaleString()} words</span>
-        <span className="status-separator">|</span>
         <span className="status-item">{chars.toLocaleString()} characters</span>
-        <span className="status-separator status-hide-md">|</span>
-        <span className="status-item status-hide-md">English (US)</span>
-        <span className="status-separator status-hide-md">|</span>
-        <span className="status-item status-hide-md">Text Predictions: On</span>
+        <span className="status-item status-lang status-hide-md">
+          <SpellCheck size={13} strokeWidth={1.9} />
+          English (US)
+        </span>
+        <span
+          className={`status-item status-privacy${privacy === 'device' ? ' device' : ''} status-hide-md`}
+          title={privacy === 'device'
+            ? 'AI runs on this device — your documents never leave the machine'
+            : 'A cloud AI provider is configured — excerpts are sent during AI requests'}
+        >
+          {privacy === 'device' ? <Lock size={11} strokeWidth={2.2} /> : <Cloud size={11} strokeWidth={2.2} />}
+          {privacy === 'device' ? 'Local AI' : 'Cloud AI'}
+        </span>
       </div>
 
       <div className="status-right">
+        <VoiceControl />
+
         <div className="status-view-modes">
-          <button className="status-button active-view" title="Read Mode" aria-label="Read Mode">
+          <button className="status-button active-view" title="Print Layout" aria-label="Print Layout">
             <FileText size={13} strokeWidth={2} />
           </button>
-          <button className="status-button" title="Print Layout" aria-label="Print Layout">
+          <button className="status-button" title="Read Mode" aria-label="Read Mode">
             <Columns2 size={13} strokeWidth={2} />
           </button>
           <button className="status-button" title="Web Layout" aria-label="Web Layout">
             <GalleryHorizontalEnd size={13} strokeWidth={2} />
           </button>
         </div>
-
-        <span className="status-separator">|</span>
 
         <div className="zoom-controls">
           <button className="zoom-button" onClick={zoomOut} disabled={zoom <= ZOOM_STEPS[0]} title="Zoom out" aria-label="Zoom out">

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   FileText, Briefcase, BarChart3, Mail, Clock,
-  FilePlus2, FolderOpen, Trash2, MoreHorizontal,
+  FilePlus2, FolderOpen, Trash2, MoreHorizontal, Sparkles,
 } from 'lucide-react';
 import { RecentDoc, formatRelativeTime } from '../../services/storage';
 import { Logo } from '../common/Logo';
@@ -99,6 +99,7 @@ interface StartPageProps {
   onOpenRecent: (doc: RecentDoc) => void;
   onRemoveRecent: (id: string) => void;
   onOpenFile: () => void;
+  onOpenGenerator: () => void;
 }
 
 function greeting(): string {
@@ -110,7 +111,7 @@ function greeting(): string {
 }
 
 export const StartPage: React.FC<StartPageProps> = ({
-  recents, userName, onOpenTemplate, onOpenRecent, onRemoveRecent, onOpenFile,
+  recents, userName, onOpenTemplate, onOpenRecent, onRemoveRecent, onOpenFile, onOpenGenerator,
 }) => {
   const greetingText = useMemo(() => `${greeting()}, ${userName}`, [userName]);
   const featured = TEMPLATES.slice(0, 4);
@@ -141,10 +142,16 @@ export const StartPage: React.FC<StartPageProps> = ({
               </button>
             ))}
           </div>
-          <button className="start-secondary-action" onClick={onOpenFile}>
-            <FolderOpen size={15} strokeWidth={2} />
-            Open a document from your device
-          </button>
+          <div className="start-actions-row">
+            <button className="start-secondary-action" onClick={onOpenGenerator}>
+              <Sparkles size={15} strokeWidth={2} />
+              Create with AI — describe what you need
+            </button>
+            <button className="start-secondary-action" onClick={onOpenFile}>
+              <FolderOpen size={15} strokeWidth={2} />
+              Open a document from your device
+            </button>
+          </div>
         </section>
 
         <section className="start-section" aria-label="Recent documents">

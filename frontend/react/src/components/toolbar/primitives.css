@@ -433,6 +433,13 @@
 
 /* ---------- Styles gallery ---------- */
 
+.style-gallery-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+
 .style-gallery {
   display: flex;
   gap: 5px;
@@ -443,6 +450,25 @@
 
 .style-gallery::-webkit-scrollbar {
   height: 5px;
+}
+
+.style-gallery-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.style-gallery-more:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: var(--accent-softer);
 }
 
 .style-card {

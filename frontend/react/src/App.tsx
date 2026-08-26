@@ -3,10 +3,14 @@ import { X } from 'lucide-react';
 import { Ribbon } from './components/toolbar/Ribbon';
 import { DocumentCanvas } from './components/editor/DocumentCanvas';
 import { Ruler } from './components/editor/Ruler';
+import FocusHUD from './components/editor/FocusHUD';
 import { StatusBar } from './components/panels/StatusBar';
 import { NavigationPane } from './components/panels/NavigationPane';
+import { NavRail } from './components/panels/NavRail';
 import { PropertiesPanel } from './components/panels/PropertiesPanel';
 import { CommentsPanel } from './components/panels/CommentsPanel';
+import { HealthPanel } from './components/panels/HealthPanel';
+import { DesignInspectorPanel } from './components/panels/DesignInspectorPanel';
 import { FileMenu } from './components/menubar/FileMenu';
 import { ContextMenu } from './components/menus/ContextMenu';
 import { FindReplaceDialog } from './components/dialogs/FindReplaceDialog';
@@ -16,9 +20,18 @@ import { SymbolPicker } from './components/dialogs/SymbolPicker';
 import { AutoCorrectDialog } from './components/dialogs/AutoCorrectDialog';
 import { TableGridPicker } from './components/dialogs/TableGridPicker';
 import { SettingsDialog } from './components/dialogs/SettingsDialog';
+import { CommandPalette } from './components/command/CommandPalette';
+import { CleanupDialog } from './components/dialogs/CleanupDialog';
+import { DocumentTestDialog } from './components/dialogs/DocumentTestDialog';
+import { PasteOptionsDialog } from './components/dialogs/PasteOptionsDialog';
+import { CodeBlockDialog } from './components/dialogs/CodeBlockDialog';
+import { TimelineDialog, DiffDialog } from './components/dialogs/TimelineDialog';
+import { AnalyticsDialog } from './components/dialogs/AnalyticsDialog';
+import { GeneratorDialog } from './components/dialogs/GeneratorDialog';
 import { ThemeProvider } from './hooks/useTheme';
 import { ToastProvider, useToast } from './components/toast/Toast';
 import { DocumentEngineProvider, useDocumentEngine } from './hooks/useDocumentEngine';
+import { DocumentBrainProvider } from './features/brain/DocumentBrainProvider';
 import { UIProvider, useUI } from './store/uiStore';
 import { AIPanel } from './components/ai/AIPanel';
 import { StartPage, TemplateDef } from './components/documents/StartPage';
@@ -26,6 +39,8 @@ import { DocumentTabs, DocTab } from './components/documents/DocumentTabs';
 import { FloatingToolbar } from './components/editor/FloatingToolbar';
 import { TitleBar, SaveStatus } from './components/titlebar/TitleBar';
 import { AppPrefs, loadPrefs, loadRecents, removeRecent, savePrefs, upsertRecent, RecentDoc } from './services/storage';
+import { PasteCandidate, PasteMode, htmlToCleanBlocks, textToRows } from './features/text/smartPaste';
+import { addWordsToday } from './features/history/writingGoal';
 import './styles/App.css';
 
 function App() {
@@ -33,9 +48,11 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <DocumentEngineProvider>
-          <UIProvider>
-            <AppShell />
-          </UIProvider>
+          <DocumentBrainProvider>
+            <UIProvider>
+              <AppShell />
+            </UIProvider>
+          </DocumentBrainProvider>
         </DocumentEngineProvider>
       </ToastProvider>
     </ThemeProvider>
@@ -78,6 +95,12 @@ const AppShell: React.FC = () => {
   const [prefs, setPrefsState] = useState<AppPrefs>(() => loadPrefs());
   const [recents, setRecents] = useState<RecentDoc[]>(() => loadRecents());
   const [currentPage, setCurrentPage] = useState(1);
+  const [pasteCandidate, setPasteCandidate] = useState<PasteCandidate | null>(null);
+
+  /* Focus session tracking */
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+  const [sessionWords, setSessionWords] = useState(0);
+  const lastWordCountRef = useRef(0);
 
   const suppressDirtyRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
@@ -97,9 +120,96 @@ const AppShell: React.FC = () => {
       if (!suppressDirtyRef.current) {
         setSaveStatus((s) => (s === 'saving' ? s : 'unsaved'));
       }
+      // Writing goal: count only growth
+      const words = engine.getWordCount();
+      const delta = words - lastWordCountRef.current;
+      lastWordCountRef.current = words;
+      if (delta > 0) {
+        addWordsToday(delta);
+        setSessionWords((w) => w + delta);
+      }
     });
     return off;
   }, [engine]);
+
+  /* ---------- Focus session timer ---------- */
+  useEffect(() => {
+    if (!ui.focusMode) return;
+    const interval = window.setInterval(() => setSessionSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, [ui.focusMode]);
+
+  useEffect(() => {
+    if (ui.focusMode) {
+      setSessionSeconds(0);
+      setSessionWords(0);
+      lastWordCountRef.current = engine.getWordCount();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.focusMode]);
+
+  /* ---------- Smart paste interception ---------- */
+  useEffect(() => {
+    const onSmartPaste = (e: Event) => {
+      const candidate = (e as CustomEvent<PasteCandidate>).detail;
+      if (!candidate) return;
+      setPasteCandidate(candidate);
+      ui.openDialog('pasteOptions');
+    };
+    window.addEventListener('word:smart-paste', onSmartPaste);
+    return () => window.removeEventListener('word:smart-paste', onSmartPaste);
+  }, [ui]);
+
+  const applyPasteMode = useCallback((mode: PasteMode) => {
+    if (!pasteCandidate) return;
+    const candidate = pasteCandidate;
+    setPasteCandidate(null);
+    ui.closeDialog();
+
+    switch (mode) {
+      case 'keep':
+      case 'plain':
+        engine.insertText(candidate.text);
+        break;
+      case 'match':
+      case 'clean': {
+        const blocks = candidate.html
+          ? htmlToCleanBlocks(candidate.html)
+          : [{ kind: 'paragraph' as const, text: candidate.text }];
+        for (const b of blocks) {
+          switch (b.kind) {
+            case 'heading':
+              engine.insertText(b.text);
+              engine.applyStyle(`Heading${Math.min(3, b.level ?? 1)}`);
+              engine.insertParagraph();
+              break;
+            case 'bullet':
+              engine.insertText(b.text);
+              engine.setBulletList();
+              engine.insertParagraph();
+              break;
+            case 'numbered':
+              engine.insertText(b.text);
+              engine.setNumberedList();
+              engine.insertParagraph();
+              break;
+            case 'table':
+              if (b.rows?.length) engine.insertTableWithData(b.rows);
+              break;
+            default:
+              engine.insertText(b.text);
+              engine.insertParagraph();
+          }
+        }
+        break;
+      }
+      case 'table': {
+        const { rows } = textToRows(candidate.text);
+        engine.insertTableWithData(rows);
+        break;
+      }
+    }
+  }, [pasteCandidate, engine, ui]);
 
   /* ---------- Tab helpers ---------- */
   /** Write the live engine document back into the currently active tab. */
@@ -194,6 +304,12 @@ const AppShell: React.FC = () => {
       if (prefs.autosave) {
         setRecents(upsertRecent(activeTabId, title, json));
       }
+      // Version history: keep a rolling snapshot on each manual save
+      if (engine.document) {
+        void import('./features/history/snapshots').then(({ addSnapshot }) => {
+          addSnapshot(engine.document!.id, { title, data: json, words: engine.getWordCount(), label: 'Save' });
+        });
+      }
       setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, snapshot: json, dirty: false, title } : t)));
       toast('success', 'Document saved', `“${title}” was saved on this device.`);
     }, 650);
@@ -211,6 +327,15 @@ const AppShell: React.FC = () => {
 
       if (mod) {
         switch (e.key.toLowerCase()) {
+          case 'k':
+            e.preventDefault();
+            ui.openDialog('commandPalette');
+            return;
+          case 'p':
+            e.preventDefault();
+            if (e.shiftKey) ui.openDialog('commandPalette');
+            else window.print();
+            return;
           case 'n':
             e.preventDefault();
             createNewDocument();
@@ -223,10 +348,6 @@ const AppShell: React.FC = () => {
             e.preventDefault();
             if (e.shiftKey) setShowFileMenu(true);
             else handleSave();
-            return;
-          case 'p':
-            e.preventDefault();
-            window.print();
             return;
           case 'f':
             e.preventDefault();
@@ -373,10 +494,14 @@ const AppShell: React.FC = () => {
             }}
             onRemoveRecent={(id) => setRecents(removeRecent(id))}
             onOpenFile={() => engine.openDocument()}
+            onOpenGenerator={() => ui.openDialog('generator')}
           />
         </div>
       ) : (
         <div className={`main-content${ui.focusMode ? ' focus-mode' : ''}`}>
+          {/* Left navigation rail */}
+          {!ui.focusMode && <NavRail />}
+
           {/* Navigation Pane */}
           {!ui.focusMode && ui.navigationOpen && (
             <NavigationPane onClose={() => ui.setNavigationOpen(false)} />
@@ -389,6 +514,8 @@ const AppShell: React.FC = () => {
           {!ui.focusMode && ui.rightPanel === 'properties' && <PropertiesPanel />}
           {!ui.focusMode && ui.rightPanel === 'comments' && <CommentsPanel />}
           {!ui.focusMode && ui.rightPanel === 'ai' && <AIPanel />}
+          {!ui.focusMode && ui.rightPanel === 'health' && <HealthPanel />}
+          {!ui.focusMode && ui.rightPanel === 'inspector' && <DesignInspectorPanel />}
         </div>
       )}
 
@@ -400,7 +527,10 @@ const AppShell: React.FC = () => {
       {/* Contextual floating toolbar for selections */}
       {!showStart && <FloatingToolbar />}
 
-      {/* Focus-mode exit affordance */}
+      {/* Focus-mode HUD + exit affordance */}
+      {ui.focusMode && !showStart && (
+        <FocusHUD sessionWords={sessionWords} sessionSeconds={sessionSeconds} dailyGoal={prefs.dailyWordGoal} />
+      )}
       {ui.focusMode && (
         <button
           className="focus-exit"
@@ -434,6 +564,31 @@ const AppShell: React.FC = () => {
       {ui.dialog === 'settings' && (
         <SettingsDialog prefs={prefs} onPrefsChange={updatePrefs} onClose={() => ui.closeDialog()} />
       )}
+
+      {/* Intelligent-feature dialogs */}
+      {ui.dialog === 'commandPalette' && <CommandPalette onClose={() => ui.closeDialog()} />}
+      {ui.dialog === 'cleanup' && <CleanupDialog onClose={() => ui.closeDialog()} />}
+      {ui.dialog === 'documentTest' && <DocumentTestDialog onClose={() => ui.closeDialog()} />}
+      {ui.dialog === 'pasteOptions' && pasteCandidate && (
+        <PasteOptionsDialog
+          candidate={pasteCandidate}
+          onPick={applyPasteMode}
+          onClose={() => {
+            setPasteCandidate(null);
+            ui.closeDialog();
+          }}
+        />
+      )}
+      {ui.dialog === 'codeBlock' && (
+        <CodeBlockDialog
+          initialTab={(ui.dialogPayload as { tab?: 'code' | 'json' } | null)?.tab ?? 'code'}
+          onClose={() => ui.closeDialog()}
+        />
+      )}
+      {ui.dialog === 'timeline' && <TimelineDialog onClose={() => ui.closeDialog()} />}
+      {ui.dialog === 'diff' && <DiffDialog onClose={() => ui.closeDialog()} />}
+      {ui.dialog === 'analytics' && <AnalyticsDialog onClose={() => ui.closeDialog()} />}
+      {ui.dialog === 'generator' && <GeneratorDialog onClose={() => ui.closeDialog()} />}
     </div>
   );
 };

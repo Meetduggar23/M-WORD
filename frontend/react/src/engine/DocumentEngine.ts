@@ -2695,6 +2695,45 @@ export class DocumentEngine {
     this.emitAll();
   }
 
+  /**
+   * Insert a table pre-filled with text data (used by smart paste,
+   * "convert to table", markdown import and table intelligence).
+   * The first row is treated as the header.
+   */
+  insertTableWithData(data: string[][]): void {
+    const rows = Math.max(1, data.length);
+    const cols = Math.max(1, Math.max(...data.map((r) => r.length)));
+    const normalized = data.map((r) => {
+      const copy = [...r];
+      while (copy.length < cols) copy.push('');
+      return copy;
+    });
+    this.insertTable(rows, cols);
+    // insertTable leaves an empty paragraph after the table; fill the cells
+    this.transformDocument((doc) => {
+      let filled = false;
+      for (const s of doc.sections) {
+        for (const b of s.blocks) {
+          if (b.type !== 'table' || b.rows.length !== rows || b.columnWidths.length !== cols) continue;
+          // Only touch the table we just inserted (its cells are all empty)
+          const isEmpty = b.rows.every((row) => row.cells.every((c) => !c.textRuns.some((r) => r.text)));
+          if (!isEmpty) continue;
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const cell = b.rows[r]?.cells[c];
+              if (cell && cell.textRuns[0]) {
+                cell.textRuns[0].text = normalized[r][c];
+                filled = true;
+              }
+            }
+          }
+          if (filled) return true;
+        }
+      }
+      return filled;
+    });
+  }
+
   // ─── Image operations ──────────────────────────────────────────────────
 
   insertImage(src: string, altText: string, width: number, height: number): void {
@@ -3460,6 +3499,25 @@ export class DocumentEngine {
   }
 
   // ─── Undo / Redo ──────────────────────────────────────────────────────
+
+  /**
+   * Apply a whole-document transform as a single undoable step.
+   * Used by intelligent tools (cleanup, normalize, smart references).
+   * Returns false when the transform declined to change anything.
+   */
+  transformDocument(transform: (doc: QuillDocument) => boolean): boolean {
+    this.pushUndo();
+    const changed = transform(this.document);
+    if (!changed) {
+      this.undoStack.pop();
+      this.emit('undo-state-changed');
+      return false;
+    }
+    this.document.metadata.modifiedAt = new Date().toISOString();
+    this.emit('document-changed');
+    this.emit('undo-state-changed');
+    return true;
+  }
 
   private pushUndo(): void {
     this.undoStack.push({

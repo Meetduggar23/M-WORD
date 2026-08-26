@@ -83,6 +83,7 @@ interface DocumentEngineContextType {
 
   // Tables
   insertTable: (rows: number, cols: number) => void;
+  insertTableWithData: (data: string[][]) => void;
 
   // Images
   insertImage: (src: string, altText: string, width: number, height: number) => void;
@@ -199,6 +200,9 @@ interface DocumentEngineContextType {
   undo: () => void;
   redo: () => void;
 
+  /** Whole-document undoable transform (cleanup, normalize, renumbering…) */
+  transformDocument: (transform: (doc: QuillDocument) => boolean) => boolean;
+
   // Serialization
   exportJSON: () => string;
   exportAsHTML: () => string;
@@ -304,6 +308,7 @@ export const DocumentEngineProvider: React.FC<DocumentEngineProviderProps> = ({ 
   const createCustomStyle = cb((n: string, r: any, p: any) => engine.createCustomStyle(n, r, p), [engine]);
 
   const insertTable = cb((r: number, c: number) => engine.insertTable(r, c), [engine]);
+  const insertTableWithData = cb((data: string[][]) => engine.insertTableWithData(data), [engine]);
   const insertImage = cb((s: string, a: string, w: number, h: number) => engine.insertImage(s, a, w, h), [engine]);
   const insertShape = cb((st: ShapeType) => engine.insertShape(st), [engine]);
   const insertChart = cb((ct: any) => engine.insertChart(ct), [engine]);
@@ -398,7 +403,7 @@ export const DocumentEngineProvider: React.FC<DocumentEngineProviderProps> = ({ 
     togglePageBreakBefore, toggleKeepWithNext, toggleKeepLinesTogether,
     setBulletList, setNumberedList, setMultilevelList, increaseListLevel, decreaseListLevel,
     applyStyle, styles: doc.styles, createCustomStyle,
-    insertTable, insertImage, insertShape, insertChart, insertEquation, insertSmartArt,
+    insertTable, insertTableWithData, insertImage, insertShape, insertChart, insertEquation, insertSmartArt,
     insertPageBreak, insertColumnBreak, insertSectionBreak, insertHorizontalRule,
     insertSymbol, insertBookmark, insertHyperlink, insertFootnote, insertEndnote, insertTableOfContents,
     addComment, replyToComment, resolveComment, deleteComment, comments: doc.comments,
@@ -417,6 +422,7 @@ export const DocumentEngineProvider: React.FC<DocumentEngineProviderProps> = ({ 
     getSentenceCount, getSelectedWordCount, getSelectedCharCount, getSelectedText,
     exportJSON, exportAsHTML, importJSON,
     canUndo: engine.canUndo(), canRedo: engine.canRedo(), undo, redo,
+    transformDocument: (t) => engine.transformDocument(t),
     setParagraphBorders, setParagraphShading, setSelection, getAllText,
     engine,
   };

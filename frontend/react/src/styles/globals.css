@@ -11,10 +11,10 @@
   --surface-raised: #ffffff;
 
   /* App chrome — Word blue title bar */
-  --titlebar-bg: #1b3a5c;
+  --titlebar-bg: #103f91;
   --titlebar-bg-hover: rgba(255, 255, 255, 0.14);
-  --titlebar-search-bg: rgba(255, 255, 255, 0.15);
-  --titlebar-search-border: rgba(255, 255, 255, 0.2);
+  --titlebar-search-bg: rgba(255, 255, 255, 0.16);
+  --titlebar-search-border: rgba(255, 255, 255, 0.22);
 
   /* Ribbon */
   --ribbon-bg: #f3f3f3;
@@ -39,8 +39,8 @@
   --accent-soft: rgba(27, 106, 201, 0.08);
   --accent-softer: rgba(27, 106, 201, 0.04);
   --accent-gradient: linear-gradient(135deg, #2b88d8 0%, #1b6ac9 60%, #104a8f 100%);
-  --brand-deep: #1b3a5c;
-  --brand-deeper: #0f2740;
+  --brand-deep: #103f91;
+  --brand-deeper: #0b2c66;
   --selection-color: rgba(27, 106, 201, 0.22);
 
   /* Interactive states */

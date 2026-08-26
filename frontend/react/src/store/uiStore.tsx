@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useCallback, useMemo, useState, ReactNode } from 'react';
 
-export type RightPanel = 'properties' | 'comments' | 'ai' | null;
+export type RightPanel = 'properties' | 'comments' | 'ai' | 'health' | 'inspector' | null;
 export type RibbonTabId =
-  | 'File' | 'Home' | 'Insert' | 'Design' | 'Layout'
-  | 'References' | 'Review' | 'View' | 'AI' | 'Help';
+  | 'File' | 'Home' | 'Insert' | 'Draw' | 'Design' | 'Layout'
+  | 'References' | 'Mailings' | 'Review' | 'View' | 'Developer' | 'Help';
 export type DialogKind =
   | 'find' | 'replace' | 'wordCount' | 'pageSetup' | 'symbolPicker'
-  | 'autoCorrect' | 'tableGrid' | 'settings' | null;
-export type NavView = 'outline' | 'pages' | 'search' | 'bookmarks' | 'comments' | 'history';
+  | 'autoCorrect' | 'tableGrid' | 'settings'
+  /* Intelligent features */
+  | 'commandPalette' | 'cleanup' | 'documentTest' | 'pasteOptions'
+  | 'codeBlock' | 'timeline' | 'diff' | 'analytics' | 'generator' | null;
+export type NavView =
+  | 'outline' | 'pages' | 'search' | 'bookmarks' | 'comments' | 'history' | 'attachments';
 
 export const ZOOM_STEPS = [50, 75, 90, 100, 125, 150, 200];
 
@@ -44,6 +48,15 @@ interface UIState {
 
   focusMode: boolean;
   setFocusMode: (on: boolean) => void;
+
+  /** Developer Mode — code blocks, JSON tools, markdown, diff surfaces */
+  devMode: boolean;
+  setDevMode: (on: boolean) => void;
+  toggleDevMode: () => void;
+
+  /** Payload for parameterized dialogs (paste options, diff, generator…) */
+  dialogPayload: unknown;
+  openDialogWith: <T>(dialog: Exclude<DialogKind, null>, payload: T) => void;
 }
 
 const UIContext = createContext<UIState | null>(null);
@@ -70,6 +83,8 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [zoom, setZoomState] = useState(100);
   const [showRuler, setShowRuler] = useState(true);
   const [focusMode, setFocusModeState] = useState(false);
+  const [devMode, setDevModeState] = useState(false);
+  const [dialogPayload, setDialogPayload] = useState<unknown>(null);
 
   const toggleRibbonCollapsed = useCallback(() => setRibbonCollapsed((c) => !c), []);
 
@@ -95,6 +110,12 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const openDialog = useCallback((d: Exclude<DialogKind, null>) => setDialog(d), []);
   const closeDialog = useCallback(() => setDialog(null), []);
+  const openDialogWith = useCallback(<T,>(dialog: Exclude<DialogKind, null>, payload: T) => {
+    setDialogPayload(payload);
+    setDialog(dialog);
+  }, []);
+  const setDevMode = useCallback((on: boolean) => setDevModeState(on), []);
+  const toggleDevMode = useCallback(() => setDevModeState((d) => !d), []);
 
   const setZoom = useCallback((z: number) => setZoomState(clampZoom(z)), []);
   const zoomIn = useCallback(() => setZoomState((z) => stepZoom(z, 1)), []);
@@ -120,20 +141,22 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       navView, setNavView, toggleNavView,
       navigationOpen, setNavigationOpen, toggleNavigation,
       rightPanel, setRightPanel, toggleRightPanel,
-      dialog, openDialog, closeDialog,
+      dialog, openDialog, closeDialog, openDialogWith, dialogPayload,
       zoom, setZoom, zoomIn, zoomOut,
       showRuler, toggleRuler,
       focusMode, setFocusMode,
+      devMode, setDevMode, toggleDevMode,
     }),
     [
       activeRibbonTab, ribbonCollapsed, toggleRibbonCollapsed,
       navView, setNavView, toggleNavView,
       navigationOpen, setNavigationOpen, toggleNavigation,
       rightPanel, toggleRightPanel,
-      dialog, openDialog, closeDialog,
+      dialog, openDialog, closeDialog, openDialogWith, dialogPayload,
       zoom, setZoom, zoomIn, zoomOut,
       showRuler, toggleRuler,
       focusMode, setFocusMode,
+      devMode, setDevMode, toggleDevMode,
     ],
   );
 

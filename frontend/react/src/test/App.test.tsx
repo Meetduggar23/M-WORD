@@ -28,7 +28,7 @@ describe('App', () => {
 
     // Status bar reports the fresh document
     expect(screen.getByText(/Page 1 of 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Words: 0/)).toBeInTheDocument();
+    expect(screen.getByText(/0 words/)).toBeInTheDocument();
 
     // Tabs strip shows the new document
     expect(screen.getByRole('tab', { name: /Blank Document/i })).toBeInTheDocument();

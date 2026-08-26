@@ -1,159 +1,197 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Sparkles, X, SendHorizontal, Copy, CheckSquare, ArrowDownToLine } from 'lucide-react';
+import {
+  Sparkles, X, SendHorizontal, Copy, CheckSquare, ArrowDownToLine,
+  FileSearch, Loader2, Lock, Cloud, Settings2, BookOpenText,
+} from 'lucide-react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
 import { useUI } from '../../store/uiStore';
 import { useToast } from '../toast/Toast';
+import { useDocumentBrain } from '../../features/brain/DocumentBrainProvider';
+import { aiService } from '../../features/ai/aiService';
+import { AIProviderError, AIContextScope } from '../../features/ai/types';
+import { retrieveForQuestion } from '../../features/brain/indexer';
 import './AIPanel.css';
+
+interface SourceRef {
+  blockId: string;
+  heading: string;
+  page: number;
+  snippet: string;
+}
 
 interface Message {
   id: number;
   role: 'user' | 'assistant';
   content: string;
+  sources?: SourceRef[];
   /** Assistant messages that produced replacement text can be applied */
   actionable?: boolean;
+  error?: boolean;
 }
 
 const QUICK_ACTIONS = [
-  { id: 'improve', label: 'Improve writing' },
-  { id: 'rewrite', label: 'Rewrite' },
-  { id: 'summarize', label: 'Summarize' },
-  { id: 'concise', label: 'Make concise' },
-  { id: 'expand', label: 'Expand' },
-  { id: 'explain', label: 'Explain' },
+  { id: 'improve', label: 'Improve writing', instruction: 'Improve the writing' },
+  { id: 'rewrite', label: 'Rewrite', instruction: 'Rewrite this' },
+  { id: 'summarize', label: 'Summarize', instruction: 'Summarize this' },
+  { id: 'concise', label: 'Make concise', instruction: 'Make this more concise' },
+  { id: 'expand', label: 'Expand', instruction: 'Expand on this' },
+  { id: 'explain', label: 'Explain', instruction: 'Explain this' },
 ] as const;
-
-type QuickActionId = (typeof QUICK_ACTIONS)[number]['id'];
-
-const ACTION_PROMPTS: Record<QuickActionId, string> = {
-  improve: 'Improve the writing',
-  rewrite: 'Rewrite this',
-  summarize: 'Summarize this',
-  concise: 'Make this more concise',
-  expand: 'Expand on this',
-  explain: 'Explain this',
-};
 
 let nextMsgId = 1;
 
-/** Local heuristic "AI" — deterministic text transforms so the panel is genuinely useful offline. */
-function generateResponse(action: QuickActionId | 'ask', source: string, question?: string): string {
-  const clean = source.replace(/\s+/g, ' ').trim();
-  const sentences = clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((s) => s.trim()).filter(Boolean) ?? [];
-  const words = clean ? clean.split(/\s+/).length : 0;
-
-  switch (action) {
-    case 'summarize': {
-      if (!sentences.length) return 'There is no content to summarize yet — start writing and ask again.';
-      const picked = sentences.filter((_, i) => i % 2 === 0).slice(0, 3);
-      return `Key points from ${words} words:\n\n${picked.map((s) => `• ${s}`).join('\n')}`;
-    }
-    case 'concise': {
-      if (!sentences.length) return 'Nothing to condense yet.';
-      return sentences
-        .map((s) =>
-          s
-            .replace(/\b(very|really|quite|just|actually|basically|literally)\s+/gi, '')
-            .replace(/\bin order to\b/gi, 'to')
-            .replace(/\bdue to the fact that\b/gi, 'because')
-            .replace(/\bat this point in time\b/gi, 'now'),
-        )
-        .join(' ');
-    }
-    case 'rewrite':
-      return `Here is a rephrased version:\n\n${
-        sentences.map((s, i) => (i % 2 === 0 ? s : `${s.charAt(0)}${s.slice(1)}`)).join(' ') || '…'
-      }\n\nTone adjusted for clarity while preserving meaning.`;
-    case 'improve': {
-      const tips: string[] = [];
-      const longSentences = sentences.filter((s) => s.split(/\s+/).length > 28).length;
-      if (longSentences > 0) tips.push(`• Split ${longSentences} long sentence${longSentences > 1 ? 's' : ''} (28+ words) for readability.`);
-      if (/\b(thing|stuff|good|bad|nice)\b/i.test(clean)) tips.push('• Replace vague words like "good" or "thing" with specifics.');
-      if (words > 40 && !/\n/.test(source)) tips.push('• Break this section into shorter paragraphs.');
-      tips.push('• The overall structure reads clearly — keep verb tense consistent.');
-      return `Writing review (${words} words analyzed):\n\n${tips.join('\n')}`;
-    }
-    case 'expand':
-      return `Expanded draft:\n\n${clean || 'Your topic'}\n\nTo develop this further, consider adding: concrete examples, the reasoning behind key claims, and a short concluding sentence that ties the idea back to your document's purpose.`;
-    case 'explain':
-      return `In plain terms:\n\n${
-        sentences[0] ? `This passage centers on "${sentences[0].toLowerCase().replace(/[.!?]$/, '')}".` : ''
-      } It presents ${sentences.length} statement${sentences.length === 1 ? '' : 's'} across roughly ${words} words, building its point step by step.`;
-    case 'ask': {
-      const q = (question ?? '').toLowerCase();
-      const engineWords = words;
-      if (q.includes('word') || q.includes('count') || q.includes('long')) {
-        return `The current document contains about ${engineWords} words. At an average reading pace of 200 wpm, that is a ~${Math.max(1, Math.round(engineWords / 200))} minute read.`;
-      }
-      if (q.includes('summar')) return generateResponse('summarize', source);
-      if (q.includes('improve') || q.includes('feedback')) return generateResponse('improve', source);
-      if (q.includes('title') || q.includes('name')) return 'Based on the content, titles like "Project Overview", "Working Notes", or "Draft Report" would fit well.';
-      return `Here is what I found in the document:\n\n${
-        sentences.slice(0, 2).map((s) => `• ${s}`).join('\n') || '• The document is currently empty.'
-      }\n\nAsk about specific sections for more detail.`;
-    }
-  }
-}
+const SCOPE_LABELS: Record<AIContextScope, string> = {
+  selection: 'Selection',
+  paragraph: 'Paragraph',
+  section: 'Section',
+  page: 'Page',
+  document: 'Entire document',
+};
 
 export const AIPanel: React.FC = () => {
   const engine = useDocumentEngine();
-  const { setRightPanel } = useUI();
+  const { setRightPanel, openDialog } = useUI();
   const { toast } = useToast();
+  const { index, indexing } = useDocumentBrain();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, thinking]);
 
-  const getSourceText = useCallback(() => {
+  /* External triggers: command palette & voice */
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const q = (e as CustomEvent<string>).detail;
+      if (q) void askDocument(q);
+    };
+    const onInline = (e: Event) => {
+      const instruction = (e as CustomEvent<string>).detail;
+      if (instruction) void runAction(instruction, instruction);
+    };
+    window.addEventListener('word:ask-ai', onAsk);
+    window.addEventListener('word:inline-ai', onInline);
+    return () => {
+      window.removeEventListener('word:ask-ai', onAsk);
+      window.removeEventListener('word:inline-ai', onInline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
+  /** Text the AI is allowed to see, per the configured context scope. */
+  const contextForScope = useCallback((): { text: string; scope: AIContextScope } => {
+    const scope = aiService.getContextScope();
     const selected = engine.getSelectedText();
-    if (selected && selected.trim()) return selected;
-    return engine.getAllText();
-  }, [engine]);
+    if (scope === 'selection' && selected.trim()) return { text: selected, scope };
+    if (scope === 'document' || scope === 'page' || scope === 'section' || scope === 'paragraph') {
+      // Paragraph/section/page approximated from the cursor block's chunk;
+      // document scope uses full text.
+      if (scope === 'document') return { text: engine.getAllText(), scope };
+      const chunk = index.chunks.find((c) => c.blockId === engine.cursorPosition.blockId);
+      return { text: chunk?.text ?? selected ?? engine.getAllText(), scope };
+    }
+    return { text: selected || engine.getAllText(), scope };
+  }, [engine, index]);
 
-  const runAction = useCallback(
-    (action: QuickActionId | 'ask', question?: string) => {
-      if (thinking) return;
-      const source = getSourceText();
-      if (!source.trim() && action !== 'ask') {
-        toast('info', 'Nothing to work with yet', 'Write or select some text first, then try an AI action.');
-        return;
+  const runAction = useCallback(async (label: string, instruction: string) => {
+    if (thinking) return;
+    const { text, scope } = contextForScope();
+    if (!text.trim()) {
+      toast('info', 'Nothing to work with yet', 'Write or select some text first, then try an AI action.');
+      return;
+    }
+    const hadSelection = !!engine.getSelectedText().trim();
+    setMessages((m) => [...m, { id: nextMsgId++, role: 'user', content: label }]);
+    setThinking(true);
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const result = await aiService.complete(
+        [
+          { role: 'system', content: instruction },
+          { role: 'user', content: `Context (${SCOPE_LABELS[scope].toLowerCase()}):\n---\n${text}` },
+        ],
+        { signal: controller.signal },
+      );
+      setThinking(false);
+      setMessages((m) => [
+        ...m,
+        { id: nextMsgId++, role: 'assistant', content: result.trim(), actionable: hadSelection },
+      ]);
+    } catch (e) {
+      setThinking(false);
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      const message = e instanceof AIProviderError ? e.message : 'The AI request failed.';
+      setMessages((m) => [...m, { id: nextMsgId++, role: 'assistant', content: message, error: true }]);
+    }
+  }, [thinking, contextForScope, engine, toast]);
+
+  /** Ask Document — retrieval-augmented: only indexed chunks are sent. */
+  const askDocument = useCallback(async (question: string) => {
+    if (thinking) return;
+    setMessages((m) => [...m, { id: nextMsgId++, role: 'user', content: question }]);
+    setThinking(true);
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const { chunks, contextText } = retrieveForQuestion(index, question, 6);
+      const sources: SourceRef[] = chunks.map((c) => ({
+        blockId: c.blockId,
+        heading: c.heading,
+        page: c.page,
+        snippet: c.text.slice(0, 140),
+      }));
+
+      let answer: string;
+      if (!contextText) {
+        answer = 'I could not find anything related to that in this document. Try different wording or add more content.';
+      } else {
+        answer = await aiService.complete(
+          [
+            {
+              role: 'system',
+              content:
+                'You answer questions about a document using ONLY the provided excerpts. ' +
+                'Cite sources inline like [1], [2]. If the excerpts do not contain the answer, say so plainly.',
+            },
+            { role: 'user', content: `Document excerpts:\n${contextText}\n\nQuestion: ${question}` },
+          ],
+          { signal: controller.signal },
+        );
       }
-
-      const userContent = action === 'ask' ? question ?? '' : ACTION_PROMPTS[action];
-      const hadSelection = !!engine.getSelectedText().trim();
-      setMessages((m) => [...m, { id: nextMsgId++, role: 'user', content: userContent }]);
-      setThinking(true);
-
-      window.setTimeout(() => {
-        const response = generateResponse(action, source, question);
-        setThinking(false);
-        // Responses can replace the document selection only when one existed
-        setMessages((m) => [
-          ...m,
-          { id: nextMsgId++, role: 'assistant', content: response, actionable: hadSelection },
-        ]);
-      }, 850 + Math.random() * 500);
-    },
-    [thinking, getSourceText, engine, toast],
-  );
+      setThinking(false);
+      setMessages((m) => [...m, { id: nextMsgId++, role: 'assistant', content: answer.trim(), sources }]);
+    } catch (e) {
+      setThinking(false);
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      const message = e instanceof AIProviderError ? e.message : 'The AI request failed.';
+      setMessages((m) => [...m, { id: nextMsgId++, role: 'assistant', content: message, error: true }]);
+    }
+  }, [thinking, index]);
 
   const handleSend = useCallback(() => {
     const q = input.trim();
     if (!q || thinking) return;
     setInput('');
-    runAction('ask', q);
-  }, [input, thinking, runAction]);
+    void askDocument(q);
+  }, [input, thinking, askDocument]);
 
   const applyLastResponse = useCallback(() => {
-    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant' && !m.error);
     if (!lastAssistant) return;
     if (engine.getSelectedText().trim()) {
-      // Replace selection: delete it, then insert the response at the caret
       engine.deleteBackward();
       engine.insertText(lastAssistant.content);
     } else {
@@ -161,6 +199,13 @@ export const AIPanel: React.FC = () => {
     }
     toast('success', 'Inserted into document');
   }, [messages, engine, toast]);
+
+  const goToSource = useCallback((blockId: string) => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-block-id="${blockId}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
 
   const copyResponse = useCallback(async (id: number, content: string) => {
     try {
@@ -172,6 +217,9 @@ export const AIPanel: React.FC = () => {
     }
   }, [toast]);
 
+  const privacy = aiService.privacy;
+  const scope = aiService.getContextScope();
+
   return (
     <aside className="ai-panel panel-enter-right" aria-label="AI Assistant">
       <header className="ai-header">
@@ -181,32 +229,56 @@ export const AIPanel: React.FC = () => {
           </span>
           <div>
             <div className="ai-title">AI Assistant</div>
-            <div className="ai-subtitle">Local · private · offline</div>
+            <div className={`ai-subtitle${privacy === 'device' ? ' private' : ''}`}>
+              {privacy === 'device' ? (
+                <>
+                  <Lock size={10} strokeWidth={2.4} />
+                  On-device — nothing leaves this machine
+                </>
+              ) : (
+                <>
+                  <Cloud size={10} strokeWidth={2.4} />
+                  Cloud provider — excerpts are sent for requests
+                </>
+              )}
+            </div>
           </div>
         </div>
-        <button
-          className="ai-close"
-          onClick={() => setRightPanel(null)}
-          aria-label="Close AI assistant"
-          title="Close"
-        >
-          <X size={15} strokeWidth={2.2} />
-        </button>
+        <div className="ai-header-actions">
+          <button
+            className="ai-config-btn"
+            onClick={() => openDialog('settings')}
+            title={`AI settings — provider, model, context (currently: ${SCOPE_LABELS[scope]})`}
+            aria-label="AI settings"
+          >
+            <Settings2 size={14} strokeWidth={2} />
+          </button>
+          <button
+            className="ai-close"
+            onClick={() => setRightPanel(null)}
+            aria-label="Close AI assistant"
+            title="Close"
+          >
+            <X size={15} strokeWidth={2.2} />
+          </button>
+        </div>
       </header>
 
       <div className="ai-scroll" ref={scrollRef}>
         {messages.length === 0 && (
           <div className="ai-empty">
             <div className="ai-empty-icon">
-              <Sparkles size={22} strokeWidth={1.8} />
+              <BookOpenText size={22} strokeWidth={1.8} />
             </div>
-            <div className="ai-empty-title">What would you like to do?</div>
+            <div className="ai-empty-title">Ask your document</div>
             <div className="ai-empty-hint">
-              Pick a quick action{engine.getSelectedText().trim() ? ' for your selection' : ' for the whole document'}, or just ask below.
+              {index.chunks.length
+                ? `${index.chunks.length} passages indexed. Ask anything — answers cite their sources.`
+                : 'Start writing, then ask questions about the content.'}
             </div>
             <div className="ai-actions">
               {QUICK_ACTIONS.map((a) => (
-                <button key={a.id} className="ai-action-chip" onClick={() => runAction(a.id)}>
+                <button key={a.id} className="ai-action-chip" onClick={() => void runAction(a.label, a.instruction)}>
                   <Sparkles size={12} strokeWidth={2.4} className="chip-spark" />
                   {a.label}
                 </button>
@@ -217,8 +289,23 @@ export const AIPanel: React.FC = () => {
 
         {messages.map((m) => (
           <div key={m.id} className={`ai-message ai-message-${m.role}`}>
-            <div className="ai-bubble">{m.content}</div>
-            {m.role === 'assistant' && (
+            <div className={`ai-bubble${m.error ? ' ai-bubble-error' : ''}`}>{m.content}</div>
+            {m.sources && m.sources.length > 0 && (
+              <div className="ai-sources">
+                <div className="ai-sources-label">
+                  <FileSearch size={11} strokeWidth={2.2} />
+                  Sources
+                </div>
+                {m.sources.map((s, i) => (
+                  <button key={`${s.blockId}-${i}`} className="ai-source" onClick={() => goToSource(s.blockId)} title="Jump to source">
+                    <span className="ai-source-num">[{i + 1}]</span>
+                    <span className="ai-source-heading">{s.heading}</span>
+                    <span className="ai-source-page">Page {s.page}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {m.role === 'assistant' && !m.error && (
               <div className="ai-message-tools">
                 <button className="ai-tool" onClick={() => copyResponse(m.id, m.content)} title="Copy response">
                   {copiedId === m.id ? <CheckSquare size={12} strokeWidth={2.2} /> : <Copy size={12} strokeWidth={2.2} />}
@@ -236,9 +323,7 @@ export const AIPanel: React.FC = () => {
         {thinking && (
           <div className="ai-message ai-message-assistant">
             <div className="ai-bubble ai-thinking" aria-label="AI is thinking">
-              <span className="ai-dot" />
-              <span className="ai-dot" />
-              <span className="ai-dot" />
+              <Loader2 size={13} strokeWidth={2.2} className="ai-spin" />
               <span className="ai-thinking-label">Thinking…</span>
             </div>
           </div>
@@ -248,8 +333,9 @@ export const AIPanel: React.FC = () => {
       <footer className="ai-input-row">
         <input
           className="ai-input"
-          placeholder="Ask about this document…"
+          placeholder={indexing ? 'Indexing document…' : 'Ask about this document…'}
           value={input}
+          disabled={indexing && !messages.length}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {

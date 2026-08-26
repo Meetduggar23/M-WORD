@@ -11,6 +11,8 @@ export interface AppPrefs {
   showStatusBarHints: boolean;
   defaultZoom: number;
   userName: string;
+  /** Daily writing goal in words (0 = disabled) */
+  dailyWordGoal: number;
 }
 
 const DEFAULT_PREFS: AppPrefs = {
@@ -19,6 +21,7 @@ const DEFAULT_PREFS: AppPrefs = {
   showStatusBarHints: true,
   defaultZoom: 100,
   userName: 'Meet',
+  dailyWordGoal: 1000,
 };
 
 export function loadPrefs(): AppPrefs {
