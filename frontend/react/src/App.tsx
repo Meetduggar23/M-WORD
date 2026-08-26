@@ -33,6 +33,8 @@ import { ToastProvider, useToast } from './components/toast/Toast';
 import { DocumentEngineProvider, useDocumentEngine } from './hooks/useDocumentEngine';
 import { DocumentBrainProvider } from './features/brain/DocumentBrainProvider';
 import { UIProvider, useUI } from './store/uiStore';
+import { AuthProvider, useAuth } from './store/authStore';
+import { AuthPage } from './components/auth/AuthPage';
 import { AIPanel } from './components/ai/AIPanel';
 import { StartPage, TemplateDef } from './components/documents/StartPage';
 import { DocumentTabs, DocTab } from './components/documents/DocumentTabs';
@@ -50,7 +52,9 @@ function App() {
         <DocumentEngineProvider>
           <DocumentBrainProvider>
             <UIProvider>
-              <AppShell />
+              <AuthProvider>
+                <AppShell />
+              </AuthProvider>
             </UIProvider>
           </DocumentBrainProvider>
         </DocumentEngineProvider>
@@ -85,6 +89,9 @@ const AppShell: React.FC = () => {
   const engine = useDocumentEngine();
   const ui = useUI();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const [showAuth, setShowAuth] = useState(false);
 
   /* ---------- Session state ---------- */
   const [tabs, setTabs] = useState<DocTab[]>([]);
@@ -458,16 +465,9 @@ const AppShell: React.FC = () => {
         />
       )}
 
-      <TitleBar saveStatus={saveStatus} onSave={handleSave} />
+      <TitleBar saveStatus={saveStatus} onSave={handleSave} onProfileClick={() => setShowAuth(true)} />
 
-      {showFileMenu && (
-        <FileMenu
-          onClose={() => setShowFileMenu(false)}
-          onOpenSettings={() => ui.openDialog('settings')}
-        />
-      )}
-
-      {!showStart && (
+      {!showStart && !showFileMenu && (
         <>
           {/* Ribbon */}
           {!ui.focusMode && (
@@ -480,11 +480,18 @@ const AppShell: React.FC = () => {
       )}
 
       {/* Main content area */}
-      {showStart ? (
+      {showFileMenu ? (
+        <div className="main-content">
+          <FileMenu
+            onClose={() => setShowFileMenu(false)}
+            onOpenSettings={() => ui.openDialog('settings')}
+          />
+        </div>
+      ) : showStart ? (
         <div className="main-content">
           <StartPage
             recents={recents}
-            userName={prefs.userName}
+            userName={user?.name || prefs.userName}
             onOpenTemplate={(tpl) => createNewDocument(tpl)}
             onOpenRecent={(doc) => {
               const tab: DocTab = {
@@ -502,6 +509,7 @@ const AppShell: React.FC = () => {
             onRemoveRecent={(id) => setRecents(removeRecent(id))}
             onOpenFile={() => engine.openDocument()}
             onOpenGenerator={() => ui.openDialog('generator')}
+            onOpenSettings={() => ui.openDialogWith('settings', { initialTab: 'shortcuts' })}
           />
         </div>
       ) : (
@@ -569,7 +577,7 @@ const AppShell: React.FC = () => {
       {ui.dialog === 'autoCorrect' && <AutoCorrectDialog onClose={() => ui.closeDialog()} />}
       {ui.dialog === 'tableGrid' && <TableGridPicker onClose={() => ui.closeDialog()} />}
       {ui.dialog === 'settings' && (
-        <SettingsDialog prefs={prefs} onPrefsChange={updatePrefs} onClose={() => ui.closeDialog()} />
+        <SettingsDialog prefs={prefs} onPrefsChange={updatePrefs} onClose={() => ui.closeDialog()} initialTab={(ui.dialogPayload as { initialTab?: string } | null)?.initialTab as 'shortcuts' | undefined} />
       )}
 
       {/* Intelligent-feature dialogs */}
@@ -596,6 +604,9 @@ const AppShell: React.FC = () => {
       {ui.dialog === 'diff' && <DiffDialog onClose={() => ui.closeDialog()} />}
       {ui.dialog === 'analytics' && <AnalyticsDialog onClose={() => ui.closeDialog()} />}
       {ui.dialog === 'generator' && <GeneratorDialog onClose={() => ui.closeDialog()} />}
+
+      {/* Auth page overlay */}
+      {showAuth && <AuthPage onBack={() => setShowAuth(false)} />}
     </div>
   );
 };
