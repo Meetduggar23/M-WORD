@@ -114,6 +114,16 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
   // selection (e.g. formatting or style changes re-render blocks).
   useEffect(() => { updateCursorPosition(); }, [doc, updateCursorPosition]);
 
+  // Clean up cursor element on unmount
+  useEffect(() => {
+    const el = canvasRef.current;
+    return () => {
+      const cursor = el?.querySelector('.editor-cursor');
+      cursor?.remove();
+      if (el) el.style.cursor = '';
+    };
+  }, []);
+
   // ─── Mouse selection ───────────────────────────────────────────────────────
   interface HitResult { blockId: string; runIndex: number; offset: number; blockEl: HTMLElement; }
 
@@ -401,7 +411,7 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
                       {p.textRuns.map(r => (
                         <span key={r.id} className="text-run" style={{
                           fontSize: r.formatting.fontSize ? `${r.formatting.fontSize}px` : '9px',
-                          color: r.formatting.color || '#808080',
+                          color: r.formatting.color || 'var(--text-muted)',
                         }}>{r.text}</span>
                       ))}
                     </div>
@@ -426,7 +436,7 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({ zoom }) => {
                       {p.textRuns.map(r => (
                         <span key={r.id} className="text-run" style={{
                           fontSize: r.formatting.fontSize ? `${r.formatting.fontSize}px` : '9px',
-                          color: r.formatting.color || '#808080',
+                          color: r.formatting.color || 'var(--text-muted)',
                         }}>{r.text}</span>
                       ))}
                     </div>
@@ -617,7 +627,7 @@ const TextRunRenderer: React.FC<{ run: TextRun }> = ({ run }) => {
 
   if (run.commentIds && run.commentIds.length > 0) {
     return (
-      <span className="text-run comment-highlight" style={{ backgroundColor: 'rgba(255, 255, 0, 0.3)' }}>
+      <span className="text-run comment-highlight" style={{ backgroundColor: 'var(--selection-color)' }}>
         {run.text}
       </span>
     );

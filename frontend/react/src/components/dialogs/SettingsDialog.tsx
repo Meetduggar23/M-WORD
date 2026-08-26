@@ -23,7 +23,7 @@ interface SettingsDialogProps {
 type SettingsTab = 'appearance' | 'editor' | 'ai' | 'privacy' | 'shortcuts' | 'about';
 
 const SHORTCUTS: { keys: string; action: string }[] = [
-  { keys: 'Ctrl + K', action: 'Command palette' },
+  { keys: 'Ctrl + K', action: 'Command palette (global)' },
   { keys: 'Ctrl + N', action: 'New document' },
   { keys: 'Ctrl + O', action: 'Open document' },
   { keys: 'Ctrl + S', action: 'Save' },
@@ -31,7 +31,7 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: 'Ctrl + F', action: 'Find' },
   { keys: 'Ctrl + H', action: 'Replace' },
   { keys: 'Ctrl + B / I / U', action: 'Bold · Italic · Underline' },
-  { keys: 'Ctrl + K', action: 'Insert hyperlink (in editor)' },
+  { keys: 'Ctrl + K', action: 'Insert hyperlink (in editor focus)' },
   { keys: 'Ctrl + Z / Y', action: 'Undo · Redo' },
   { keys: 'F11', action: 'Toggle fullscreen' },
 ];

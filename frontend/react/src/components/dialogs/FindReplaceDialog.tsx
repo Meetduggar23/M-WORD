@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
+import { CursorPosition } from '../../engine/DocumentEngine';
 import './FindReplaceDialog.css';
 
 interface FindReplaceDialogProps {
@@ -16,7 +17,7 @@ export const FindReplaceDialog: React.FC<FindReplaceDialogProps> = ({ mode: init
   const [wholeWord, setWholeWord] = useState(false);
   const [useWildcard, setUseWildcard] = useState(false);
   const [matchAllWordForms, setMatchAllWordForms] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<CursorPosition[]>([]);
   const [currentResult, setCurrentResult] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 

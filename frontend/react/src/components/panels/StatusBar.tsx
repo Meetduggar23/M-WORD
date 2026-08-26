@@ -8,7 +8,7 @@ import { VoiceControl } from './VoiceControl';
 import './StatusBar.css';
 
 interface StatusBarProps {
-  saveStatus: SaveStatus;
+  saveStatus?: SaveStatus;
   currentPage: number;
   pageCount: number;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Menu, ChevronDown, Check, CircleDashed, Search, Undo2, Redo2, Save,
-  Share2, Minus, Square, X, FileText, Pencil, Download,
+  Share2, Settings, Minus, Square, X, FileText, Pencil, Download,
 } from 'lucide-react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
 import { useUI } from '../../store/uiStore';
@@ -182,6 +182,10 @@ export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave }) => {
         <button className="share-pill" onClick={handleShare} title="Copy share link" aria-label="Share">
           <Share2 size={14} strokeWidth={2} />
           Share
+        </button>
+
+        <button className="tb-icon-btn" onClick={() => openDialog('settings')} title="Settings" aria-label="Settings">
+          <Settings size={15} strokeWidth={1.9} />
         </button>
 
         <button className="profile-chip" onClick={() => openDialog('settings')} title="Account & settings" aria-label="Account and settings">

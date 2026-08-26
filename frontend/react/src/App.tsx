@@ -148,6 +148,13 @@ const AppShell: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.focusMode]);
 
+  /* ---------- File menu toggle from title bar ---------- */
+  useEffect(() => {
+    const onToggleFileMenu = () => setShowFileMenu((o) => !o);
+    window.addEventListener('word:toggle-file-menu', onToggleFileMenu);
+    return () => window.removeEventListener('word:toggle-file-menu', onToggleFileMenu);
+  }, []);
+
   /* ---------- Smart paste interception ---------- */
   useEffect(() => {
     const onSmartPaste = (e: Event) => {

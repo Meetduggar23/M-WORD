@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import {
-  FileText, Briefcase, BarChart3, Mail, Clock,
-  FilePlus2, FolderOpen, Trash2, MoreHorizontal, Sparkles,
+  FileText, Briefcase, BarChart3, Mail, Clock, StickyNote,
+  FilePlus2, FolderOpen, Upload, LayoutGrid, MoreHorizontal, ArrowRight,
 } from 'lucide-react';
 import { RecentDoc, formatRelativeTime } from '../../services/storage';
-import { Logo } from '../common/Logo';
 import './StartPage.css';
 
 export interface TemplateDef {
@@ -31,16 +30,16 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: 'blank',
     name: 'Blank Document',
-    description: 'A clean page, ready for anything',
-    icon: <FileText size={22} strokeWidth={1.8} />,
-    accent: '#2264dc',
+    description: 'Start with a clean page',
+    icon: <FileText size={26} strokeWidth={1.6} />,
+    accent: '#1b6ac9',
     blocks: [p('')],
   },
   {
     id: 'resume',
     name: 'Resume',
-    description: 'Structured professional resume',
-    icon: <Briefcase size={22} strokeWidth={1.8} />,
+    description: 'Professional resume format',
+    icon: <Briefcase size={26} strokeWidth={1.6} />,
     accent: '#7c3aed',
     blocks: [
       title('ALEX MORGAN'),
@@ -59,8 +58,8 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: 'report',
     name: 'Report',
-    description: 'Business report with sections',
-    icon: <BarChart3 size={22} strokeWidth={1.8} />,
+    description: 'Structured report with sections',
+    icon: <BarChart3 size={26} strokeWidth={1.6} />,
     accent: '#0d9488',
     blocks: [
       title('Quarterly Business Report'),
@@ -76,8 +75,8 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: 'letter',
     name: 'Letter',
-    description: 'Formal letter layout',
-    icon: <Mail size={22} strokeWidth={1.8} />,
+    description: 'Formal letter format',
+    icon: <Mail size={26} strokeWidth={1.6} />,
     accent: '#c2410c',
     blocks: [
       p('March 14, 2026'),
@@ -90,6 +89,35 @@ export const TEMPLATES: TemplateDef[] = [
       p('Customer Success Lead'),
     ],
   },
+  {
+    id: 'notes',
+    name: 'Notes',
+    description: 'Simple notes and ideas',
+    icon: <StickyNote size={26} strokeWidth={1.6} />,
+    accent: '#b45309',
+    blocks: [
+      title('Meeting Notes'),
+      p('Date: March 14, 2026'),
+      p(''),
+      h1('Agenda'),
+      p('1. Product roadmap review'),
+      p('2. Q2 planning discussion'),
+      p('3. Team updates'),
+      p(''),
+      h1('Action Items'),
+      p('• Review design mockups by Friday'),
+      p('• Schedule follow-up with engineering'),
+      p('• Update project timeline'),
+    ],
+  },
+];
+
+const SHORTCUTS = [
+  { keys: ['Ctrl', 'N'], label: 'New document' },
+  { keys: ['Ctrl', 'O'], label: 'Open document' },
+  { keys: ['Ctrl', 'S'], label: 'Save document' },
+  { keys: ['Ctrl', 'F'], label: 'Find in document' },
+  { keys: ['Ctrl', 'Z'], label: 'Undo' },
 ];
 
 interface StartPageProps {
@@ -110,55 +138,104 @@ function greeting(): string {
   return 'Good evening';
 }
 
+/** Word-style file type icon color */
+function fileTypeColor(title: string): string {
+  const ext = title.split('.').pop()?.toLowerCase() || '';
+  if (['doc', 'docx'].includes(ext)) return '#2b579a';
+  if (['pdf'].includes(ext)) return '#d32f2f';
+  if (['xls', 'xlsx'].includes(ext)) return '#217346';
+  if (['ppt', 'pptx'].includes(ext)) return '#b7472a';
+  return '#616161';
+}
+
+function fileIcon(title: string): React.ReactNode {
+  const color = fileTypeColor(title);
+  return (
+    <span className="recent-file-icon" style={{ color }}>
+      <FileText size={18} strokeWidth={1.6} />
+    </span>
+  );
+}
+
 export const StartPage: React.FC<StartPageProps> = ({
-  recents, userName, onOpenTemplate, onOpenRecent, onRemoveRecent, onOpenFile, onOpenGenerator,
+  recents, userName, onOpenTemplate, onOpenRecent, onOpenFile, onOpenGenerator,
 }) => {
   const greetingText = useMemo(() => `${greeting()}, ${userName}`, [userName]);
-  const featured = TEMPLATES.slice(0, 4);
 
   return (
     <div className="start-page">
       <div className="start-scroll">
-        <header className="start-hero">
-          <Logo size={44} className="start-logo" />
-          <h1 className="start-greeting">{greetingText}</h1>
-          <p className="start-subtitle">Create something new, or pick up where you left off.</p>
-        </header>
+        {/* ── Hero: greeting + quick actions ── */}
+        <div className="start-hero-row">
+          <div className="start-hero-left">
+            <h1 className="start-greeting">{greetingText}</h1>
+            <p className="start-subtitle">Create something new, or continue where you left off.</p>
+          </div>
 
-        <section className="start-section" aria-label="Templates">
-          <div className="start-template-grid">
-            {featured.map((tpl) => (
+          <div className="start-hero-right">
+            <span className="quick-actions-label">Quick actions</span>
+            <div className="quick-actions-row">
+              <button className="quick-action-btn" onClick={onOpenFile}>
+                <FolderOpen size={16} strokeWidth={1.8} />
+                Open
+              </button>
+              <button className="quick-action-btn" onClick={onOpenGenerator}>
+                <Upload size={16} strokeWidth={1.8} />
+                Import
+              </button>
+              <button className="quick-action-btn" onClick={() => onOpenTemplate(TEMPLATES[0])}>
+                <LayoutGrid size={16} strokeWidth={1.8} />
+                New from template
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Create New: template cards ── */}
+        <section className="start-section" aria-label="Create new">
+          <h2 className="start-section-title">Create New</h2>
+
+          <div className="start-template-row">
+            {TEMPLATES.map((tpl) => (
               <button
                 key={tpl.id}
                 className="template-card"
                 onClick={() => onOpenTemplate(tpl)}
               >
-                <span className="template-icon" style={{ color: tpl.accent, background: `${tpl.accent}14` }}>
+                <span
+                  className="template-icon"
+                  style={{ color: tpl.accent, background: `${tpl.accent}12` }}
+                >
                   {tpl.icon}
                 </span>
                 <span className="template-name">{tpl.name}</span>
                 <span className="template-desc">{tpl.description}</span>
-                <span className="template-cta" style={{ color: tpl.accent }}>Create →</span>
               </button>
             ))}
-          </div>
-          <div className="start-actions-row">
-            <button className="start-secondary-action" onClick={onOpenGenerator}>
-              <Sparkles size={15} strokeWidth={2} />
-              Create with AI — describe what you need
-            </button>
-            <button className="start-secondary-action" onClick={onOpenFile}>
-              <FolderOpen size={15} strokeWidth={2} />
-              Open a document from your device
+
+            <button className="template-card template-card-more" onClick={onOpenGenerator}>
+              <span className="template-icon template-icon-more">
+                <span className="plus-icon">+</span>
+              </span>
+              <span className="template-name">More templates</span>
             </button>
           </div>
         </section>
 
+        {/* ── Recent Documents ── */}
         <section className="start-section" aria-label="Recent documents">
-          <h2 className="start-heading">
-            <Clock size={15} strokeWidth={2.2} />
-            Recent Documents
-          </h2>
+          <div className="start-section-header">
+            <h2 className="start-section-title">
+              <Clock size={16} strokeWidth={2} />
+              Recent Documents
+            </h2>
+            {recents.length > 0 && (
+              <button className="view-all-btn">
+                View all
+                <ArrowRight size={13} strokeWidth={2.2} />
+              </button>
+            )}
+          </div>
 
           {recents.length === 0 ? (
             <div className="start-empty">
@@ -169,44 +246,85 @@ export const StartPage: React.FC<StartPageProps> = ({
               </div>
             </div>
           ) : (
-            <ul className="recent-list">
+            <div className="recent-table">
+              <div className="recent-table-header">
+                <span className="rt-col rt-col-name">Name</span>
+                <span className="rt-col rt-col-time">Date modified</span>
+                <span className="rt-col rt-col-author">Author</span>
+                <span className="rt-col rt-col-actions" />
+              </div>
               {recents.map((doc) => (
-                <li key={doc.id}>
-                  <button
-                    className={`recent-item${doc.title ? '' : ''}`}
-                    onClick={() => onOpenRecent(doc)}
-                    title={`Open ${doc.title}`}
-                  >
-                    <span className="recent-icon">
-                      <FileText size={16} strokeWidth={1.8} />
-                    </span>
-                    <span className="recent-meta">
-                      <span className="recent-title">{doc.title || 'Untitled document'}</span>
-                      <span className="recent-time">{formatRelativeTime(doc.openedAt)}</span>
-                    </span>
-                    <MoreHorizontal
-                      size={14}
-                      strokeWidth={2}
-                      className="recent-dots"
-                      aria-hidden="true"
-                    />
-                  </button>
-                  <button
-                    className="recent-remove"
-                    onClick={(e) => { e.stopPropagation(); onRemoveRecent(doc.id); }}
-                    aria-label={`Remove ${doc.title} from recents`}
-                    title="Remove from list"
-                  >
-                    <Trash2 size={13} strokeWidth={2} />
-                  </button>
-                </li>
+                <div
+                  key={doc.id}
+                  className="recent-table-row"
+                  onClick={() => onOpenRecent(doc)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onOpenRecent(doc);
+                    }
+                  }}
+                  title={`Open ${doc.title}`}
+                >
+                  <span className="rt-col rt-col-name">
+                    {fileIcon(doc.title)}
+                    <span className="rt-title">{doc.title || 'Untitled document'}</span>
+                  </span>
+                  <span className="rt-col rt-col-time">
+                    {formatRelativeTime(doc.openedAt)}
+                  </span>
+                  <span className="rt-col rt-col-author">
+                    {userName || 'User'}
+                  </span>
+                  <span className="rt-col rt-col-actions">
+                    <button
+                      className="rt-more-btn"
+                      onClick={(e) => { e.stopPropagation(); }}
+                      title="More options"
+                      aria-label={`More options for ${doc.title}`}
+                    >
+                      <MoreHorizontal size={14} strokeWidth={2} />
+                    </button>
+                  </span>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 
         <footer className="start-footer">WORD — Professional Document Editor</footer>
       </div>
+
+      {/* ── Right sidebar: Tips & Shortcuts ── */}
+      <aside className="start-sidebar">
+        <div className="tips-section">
+          <div className="tips-header">
+            <span className="tips-diamond">◆</span>
+            Tips &amp; Shortcuts
+          </div>
+          <ul className="tips-list">
+            {SHORTCUTS.map((sc, i) => (
+              <li key={i} className="tips-item">
+                <span className="tips-keys">
+                  {sc.keys.map((k, j) => (
+                    <span key={j}>
+                      <kbd>{k}</kbd>
+                      {j < sc.keys.length - 1 && <span className="tips-plus">+</span>}
+                    </span>
+                  ))}
+                </span>
+                <span className="tips-label">{sc.label}</span>
+              </li>
+            ))}
+          </ul>
+          <button className="tips-more-btn">
+            See more shortcuts
+            <ArrowRight size={12} strokeWidth={2.2} />
+          </button>
+        </div>
+      </aside>
     </div>
   );
 };
