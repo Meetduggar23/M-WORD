@@ -35,6 +35,8 @@ import { DocumentBrainProvider } from './features/brain/DocumentBrainProvider';
 import { UIProvider, useUI } from './store/uiStore';
 import { AuthProvider, useAuth } from './store/authStore';
 import { AuthPage } from './components/auth/AuthPage';
+import { ProfileDropdown } from './components/auth/ProfileDropdown';
+import { ProfilePage } from './components/auth/ProfilePage';
 import { AIPanel } from './components/ai/AIPanel';
 import { StartPage, TemplateDef } from './components/documents/StartPage';
 import { DocumentTabs, DocTab } from './components/documents/DocumentTabs';
@@ -89,9 +91,11 @@ const AppShell: React.FC = () => {
   const engine = useDocumentEngine();
   const ui = useUI();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const [showAuth, setShowAuth] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showProfilePage, setShowProfilePage] = useState(false);
 
   /* ---------- Session state ---------- */
   const [tabs, setTabs] = useState<DocTab[]>([]);
@@ -465,7 +469,22 @@ const AppShell: React.FC = () => {
         />
       )}
 
-      <TitleBar saveStatus={saveStatus} onSave={handleSave} onProfileClick={() => setShowAuth(true)} />
+      <div style={{ position: 'relative' }}>
+        <TitleBar saveStatus={saveStatus} onSave={handleSave} onProfileClick={() => {
+          if (user) {
+            setShowProfileDropdown((o) => !o);
+          } else {
+            setShowAuth(true);
+          }
+        }} />
+        {showProfileDropdown && user && (
+          <ProfileDropdown
+            onOpenProfile={() => { setShowProfilePage(true); setShowProfileDropdown(false); }}
+            onOpenSettings={() => { ui.openDialog('settings'); setShowProfileDropdown(false); }}
+            onClose={() => setShowProfileDropdown(false)}
+          />
+        )}
+      </div>
 
       {!showStart && !showFileMenu && (
         <>
@@ -485,13 +504,17 @@ const AppShell: React.FC = () => {
           <FileMenu
             onClose={() => setShowFileMenu(false)}
             onOpenSettings={() => ui.openDialog('settings')}
+            onOpenProfile={() => { setShowProfilePage(true); setShowFileMenu(false); }}
+            onLogout={() => { logout(); setShowFileMenu(false); }}
           />
         </div>
       ) : showStart ? (
         <div className="main-content">
           <StartPage
             recents={recents}
-            userName={user?.name || prefs.userName}
+            userName={user?.name || ''}
+            isAuthenticated={!!user}
+            onLogin={() => setShowAuth(true)}
             onOpenTemplate={(tpl) => createNewDocument(tpl)}
             onOpenRecent={(doc) => {
               const tab: DocTab = {
@@ -607,6 +630,9 @@ const AppShell: React.FC = () => {
 
       {/* Auth page overlay */}
       {showAuth && <AuthPage onBack={() => setShowAuth(false)} />}
+
+      {/* Profile page overlay */}
+      {showProfilePage && <ProfilePage onClose={() => setShowProfilePage(false)} />}
     </div>
   );
 };

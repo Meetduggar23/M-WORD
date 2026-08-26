@@ -197,9 +197,9 @@
 }
 
 .pp-clear-btn:hover {
-  background: #fdeef0;
-  border-color: #d13438;
-  color: #b02a2d;
+  background: var(--color-error-soft);
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 /* Styles panel */

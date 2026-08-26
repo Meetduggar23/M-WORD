@@ -48,7 +48,7 @@
 
 .symbol-close:hover {
   background: var(--hover-color);
-  color: #d13438;
+  color: var(--color-error);
 }
 
 .symbol-body {

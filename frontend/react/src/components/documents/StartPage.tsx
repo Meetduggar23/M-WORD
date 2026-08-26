@@ -308,7 +308,16 @@ export const StartPage: React.FC<StartPageProps> = ({
               )}
             </section>
 
-            <footer className="start-footer">Made by Meet Duggar</footer>
+            <footer className="start-footer">
+              <div className="sf-left">
+                <span className="sf-brand">WORD</span>
+                <span className="sf-sep" />
+                <span className="sf-copy">Made by Meet Duggar</span>
+              </div>
+              <div className="sf-right">
+                <span className="sf-version">v1.0.0</span>
+              </div>
+            </footer>
           </div>
 
           {/* ── Right sidebar: Tips & Shortcuts ── */}

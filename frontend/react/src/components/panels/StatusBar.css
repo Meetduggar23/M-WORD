@@ -42,13 +42,13 @@
 }
 
 .status-privacy.device {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.08);
+  color: var(--color-success);
+  background: var(--color-success-soft);
 }
 
 .status-privacy:not(.device) {
-  color: #d97706;
-  background: rgba(217, 119, 6, 0.08);
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
 }
 
 .status-button {
@@ -98,8 +98,8 @@
   border-radius: 50%;
 }
 
-.save-indicator.saved   { background: #16a34a; }
-.save-indicator.saving  { background: #d97706; animation: save-pulse 0.9s infinite ease-in-out; }
+.save-indicator.saved   { background: var(--color-success); }
+.save-indicator.saving  { background: var(--color-warning); animation: save-pulse 0.9s infinite ease-in-out; }
 .save-indicator.unsaved { background: var(--text-muted); }
 
 @keyframes save-pulse {

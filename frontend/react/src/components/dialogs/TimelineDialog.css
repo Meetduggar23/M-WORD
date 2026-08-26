@@ -127,12 +127,12 @@
 }
 
 .tl-btn-danger {
-  color: #c42b1c;
+  color: var(--color-error);
 }
 
 .tl-btn-danger:hover:not(:disabled) {
-  border-color: #c42b1c;
-  color: #c42b1c;
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 /* ---------- Diff view ---------- */

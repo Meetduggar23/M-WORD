@@ -55,7 +55,7 @@
 }
 
 .fh-goal-label svg {
-  color: #16a34a;
+  color: var(--color-success);
 }
 
 .fh-goal-track {
@@ -71,7 +71,7 @@
 }
 
 .fh-block.filled {
-  background: #16a34a;
+  background: var(--color-success);
 }
 
 .fh-goal-pct {

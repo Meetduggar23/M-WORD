@@ -192,7 +192,7 @@
 }
 
 .di-warn svg {
-  color: #d97706;
+  color: var(--color-warning);
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -251,13 +251,13 @@
   width: 30px;
   display: flex;
   justify-content: flex-end;
-  color: #16a34a;
+  color: var(--color-success);
   font-size: 10.5px;
   font-weight: 600;
 }
 
 .di-usage-font.warn {
-  color: #d97706;
+  color: var(--color-warning);
 }
 
 .di-footer {

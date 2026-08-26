@@ -1,7 +1,7 @@
 .navigation-pane {
   width: 300px;
   min-width: 300px;
-  background: #fafafa;
+  background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -41,7 +41,7 @@
 
 .close-button:hover {
   background: var(--hover-color);
-  color: #c42b1c;
+  color: var(--color-error);
 }
 
 /* Navigation content */
@@ -350,7 +350,7 @@
 .comment-resolved {
   font-size: 10px;
   font-weight: 600;
-  color: #16a34a;
+  color: var(--color-success);
 }
 
 .comment-body {

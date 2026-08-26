@@ -312,6 +312,10 @@
   flex-shrink: 0;
 }
 
+[data-theme='dark'] .ai-ribbon-note svg {
+  color: #a78bfa;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1100px) {

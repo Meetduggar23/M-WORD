@@ -12,9 +12,9 @@ import './HealthPanel.css';
 const CATEGORY_ORDER: HealthCategory[] = ['structure', 'readability', 'formatting', 'grammar', 'accessibility', 'references'];
 
 function scoreColor(score: number): string {
-  if (score >= 85) return '#16a34a';
-  if (score >= 65) return '#d97706';
-  return '#c42b1c';
+  if (score >= 85) return 'var(--color-success)';
+  if (score >= 65) return 'var(--color-warning)';
+  return 'var(--color-error)';
 }
 
 export const HealthPanel: React.FC = () => {

@@ -503,11 +503,11 @@
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: #d97706;
+  color: var(--color-warning);
 }
 
 .ai-preset-privacy.device {
-  color: #16a34a;
+  color: var(--color-success);
 }
 
 .ai-field {
@@ -535,8 +535,8 @@
   font-weight: 500;
 }
 
-.ai-status.ok { color: #16a34a; }
-.ai-status.bad { color: #c42b1c; }
+.ai-status.ok { color: var(--color-success); }
+.ai-status.bad { color: var(--color-error); }
 
 .ai-scope-row {
   display: flex;
@@ -569,7 +569,7 @@
 }
 
 .ai-goal-row svg {
-  color: #16a34a;
+  color: var(--color-success);
 }
 
 .ai-goal-row input {

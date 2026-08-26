@@ -18,22 +18,61 @@ interface SettingsDialogProps {
   prefs: AppPrefs;
   onPrefsChange: (prefs: AppPrefs) => void;
   onClose: () => void;
+  initialTab?: SettingsTab;
 }
 
 type SettingsTab = 'appearance' | 'editor' | 'ai' | 'privacy' | 'shortcuts' | 'about';
 
 const SHORTCUTS: { keys: string; action: string }[] = [
-  { keys: 'Ctrl + K', action: 'Command palette (global)' },
-  { keys: 'Ctrl + N', action: 'New document' },
-  { keys: 'Ctrl + O', action: 'Open document' },
-  { keys: 'Ctrl + S', action: 'Save' },
-  { keys: 'Ctrl + P', action: 'Print / Export PDF' },
+  // A
+  { keys: 'Ctrl + A', action: 'Select all' },
+  // B
+  { keys: 'Ctrl + B', action: 'Bold' },
+  // C
+  { keys: 'Ctrl + C', action: 'Copy' },
+  // D
+  { keys: 'Ctrl + D', action: 'Font dialog' },
+  // F
   { keys: 'Ctrl + F', action: 'Find' },
-  { keys: 'Ctrl + H', action: 'Replace' },
-  { keys: 'Ctrl + B / I / U', action: 'Bold · Italic · Underline' },
-  { keys: 'Ctrl + K', action: 'Insert hyperlink (in editor focus)' },
-  { keys: 'Ctrl + Z / Y', action: 'Undo · Redo' },
+  // H
+  { keys: 'Ctrl + H', action: 'Find and Replace' },
+  // I
+  { keys: 'Ctrl + I', action: 'Italic' },
+  // K
+  { keys: 'Ctrl + K', action: 'Insert hyperlink / Command palette' },
+  // N
+  { keys: 'Ctrl + N', action: 'New document' },
+  // O
+  { keys: 'Ctrl + O', action: 'Open document' },
+  // P
+  { keys: 'Ctrl + P', action: 'Print / Export PDF' },
+  // S
+  { keys: 'Ctrl + S', action: 'Save document' },
+  { keys: 'Ctrl + Shift + S', action: 'Save As' },
+  // U
+  { keys: 'Ctrl + U', action: 'Underline' },
+  // V
+  { keys: 'Ctrl + V', action: 'Paste' },
+  // X
+  { keys: 'Ctrl + X', action: 'Cut' },
+  // Y
+  { keys: 'Ctrl + Y', action: 'Redo' },
+  // Z
+  { keys: 'Ctrl + Z', action: 'Undo' },
+  // Special keys
   { keys: 'F11', action: 'Toggle fullscreen' },
+  { keys: 'Tab', action: 'Insert tab / Increase indent' },
+  { keys: 'Shift + Tab', action: 'Decrease indent' },
+  { keys: 'Enter', action: 'New paragraph' },
+  { keys: 'Backspace', action: 'Delete backward' },
+  { keys: 'Delete', action: 'Delete forward' },
+  { keys: 'Home', action: 'Go to line start' },
+  { keys: 'End', action: 'Go to line end' },
+  { keys: 'Ctrl + Home', action: 'Go to document start' },
+  { keys: 'Ctrl + End', action: 'Go to document end' },
+  { keys: 'Ctrl + ]', action: 'Increase font size' },
+  { keys: 'Ctrl + [', action: 'Decrease font size' },
+  { keys: 'Escape', action: 'Close dialog / Exit focus mode' },
 ];
 
 const FLAG_LABELS: { id: FeatureFlag; label: string; desc: string }[] = [
@@ -48,9 +87,9 @@ const FLAG_LABELS: { id: FeatureFlag; label: string; desc: string }[] = [
   { id: 'writingGoals', label: 'Writing goals', desc: 'Daily word goal and focus session tracking' },
 ];
 
-export const SettingsDialog: React.FC<SettingsDialogProps> = ({ prefs, onPrefsChange, onClose }) => {
+export const SettingsDialog: React.FC<SettingsDialogProps> = ({ prefs, onPrefsChange, onClose, initialTab }) => {
   const { theme, setTheme } = useTheme();
-  const [tab, setTab] = useState<SettingsTab>('appearance');
+  const [tab, setTab] = useState<SettingsTab>(initialTab || 'appearance');
   const dialogRef = useRef<HTMLDivElement>(null);
 
   /* AI provider config — local state, committed to aiService on change */
@@ -339,14 +378,20 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ prefs, onPrefsCh
             )}
 
             {tab === 'shortcuts' && (
-              <div className="shortcut-list">
-                {SHORTCUTS.map((s) => (
-                  <div key={s.keys} className="shortcut-row">
-                    <kbd>{s.keys}</kbd>
-                    <span>{s.action}</span>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className="settings-group-label">Keyboard Shortcuts</div>
+                <p className="settings-note" style={{ marginBottom: 12 }}>
+                  All available keyboard shortcuts. Use these to work faster.
+                </p>
+                <div className="shortcut-list">
+                  {SHORTCUTS.map((s) => (
+                    <div key={s.keys} className="shortcut-row">
+                      <kbd>{s.keys}</kbd>
+                      <span>{s.action}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             {tab === 'about' && (

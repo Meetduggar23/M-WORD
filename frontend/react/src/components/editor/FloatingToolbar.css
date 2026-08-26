@@ -118,7 +118,7 @@
 }
 
 .ftp-error {
-  color: #c42b1c;
+  color: var(--color-error);
 }
 
 .ftp-note {

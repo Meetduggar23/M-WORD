@@ -6,6 +6,7 @@ import {
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
 import { useUI } from '../../store/uiStore';
 import { useToast } from '../toast/Toast';
+import { useAuth } from '../../store/authStore';
 import { Logo } from '../common/Logo';
 import './TitleBar.css';
 
@@ -14,12 +15,14 @@ export type SaveStatus = 'saved' | 'unsaved' | 'saving';
 interface TitleBarProps {
   saveStatus: SaveStatus;
   onSave?: () => void;
+  onProfileClick?: () => void;
 }
 
-export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave }) => {
+export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave, onProfileClick }) => {
   const { document: doc, setDocumentTitle, saveDocument, canUndo, canRedo, undo, redo } = useDocumentEngine();
   const { openDialog, focusMode } = useUI();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
   const [titleValue, setTitleValue] = useState(doc?.metadata.title || 'Untitled Document');
@@ -188,8 +191,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({ saveStatus, onSave }) => {
           <Settings size={15} strokeWidth={1.9} />
         </button>
 
-        <button className="profile-chip" onClick={() => openDialog('settings')} title="Account & settings" aria-label="Account and settings">
-          M
+        <button className="profile-chip" onClick={() => onProfileClick ? onProfileClick() : openDialog('settings')} title="Account & settings" aria-label="Account and settings">
+          {user?.initials || 'U'}
         </button>
 
         <div className="tb-window-controls">

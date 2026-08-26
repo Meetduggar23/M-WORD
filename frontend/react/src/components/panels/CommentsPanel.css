@@ -210,8 +210,8 @@
 }
 
 .cp-action-btn.delete:hover {
-  background: #fdeef0;
-  color: #b02a2d;
+  background: var(--color-error-soft);
+  color: var(--color-error);
 }
 
 .cp-comment-body {

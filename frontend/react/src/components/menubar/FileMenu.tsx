@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { useDocumentEngine } from '../../hooks/useDocumentEngine';
+import { useAuth } from '../../store/authStore';
 import {
   Info, FilePlus, FolderOpen, Save, FileDown, Printer,
   Download, Share2, UserCircle, Settings, ArrowLeft,
   FileText, BarChart3, Mail, Newspaper, LayoutGrid,
   Megaphone, Receipt, Code2, Braces, FileCode, FileType,
-  Copy, Globe, Type as TypeIcon,
+  Copy, Globe, Type as TypeIcon, LogOut, User,
 } from 'lucide-react';
 import './FileMenu.css';
 
 interface FileMenuProps {
   onClose: () => void;
   onOpenSettings?: () => void;
+  onOpenProfile?: () => void;
+  onLogout?: () => void;
 }
 
 type FileMenuTab = 'info' | 'new' | 'open' | 'save' | 'saveAs' | 'print' | 'export' | 'share' | 'account' | 'options';
@@ -20,8 +23,9 @@ const TabIcon: React.FC<{ icon: React.ReactNode; active?: boolean }> = ({ icon, 
   <span className={`file-tab-icon${active ? ' active' : ''}`}>{icon}</span>
 );
 
-export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings }) => {
+export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings, onOpenProfile, onLogout }) => {
   const engine = useDocumentEngine();
+  const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<FileMenuTab>('info');
 
   const tabs: { id: FileMenuTab; label: string; icon: React.ReactNode }[] = [
@@ -360,43 +364,51 @@ export const FileMenu: React.FC<FileMenuProps> = ({ onClose, onOpenSettings }) =
         {activeTab === 'account' && (
           <div className="file-account-panel">
             <h2>Account</h2>
-            <div className="account-info">
-              <div className="account-avatar">U</div>
-              <div className="account-details">
-                <div className="account-name">{engine.document?.metadata.author || 'User'}</div>
-                <div className="account-email">WORD Editor User</div>
+            {isAuthenticated && user ? (
+              <>
+                <div className="account-info">
+                  <div
+                    className="account-avatar"
+                    style={{ background: user.color, color: '#fff' }}
+                  >
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      user.initials
+                    )}
+                  </div>
+                  <div className="account-details">
+                    <div className="account-name">{user.name}</div>
+                    <div className="account-email">{user.email}</div>
+                  </div>
+                </div>
+                <div className="account-section">
+                  <h3>Account Actions</h3>
+                  <button
+                    className="account-action-btn"
+                    onClick={() => { onOpenProfile?.(); onClose(); }}
+                  >
+                    <User size={16} strokeWidth={1.8} />
+                    Edit Profile
+                  </button>
+                  <button
+                    className="account-action-btn account-action-danger"
+                    onClick={() => { onLogout?.(); onClose(); }}
+                  >
+                    <LogOut size={16} strokeWidth={1.8} />
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="account-section">
+                <div className="account-not-signed-in">
+                  <UserCircle size={40} strokeWidth={1.4} style={{ color: 'var(--text-muted)' }} />
+                  <p>You are not signed in.</p>
+                  <p className="account-email">Sign in to sync your documents and personalize your experience.</p>
+                </div>
               </div>
-            </div>
-            <div className="account-section">
-              <h3>User Information</h3>
-              <div className="account-field">
-                <label>Name:</label>
-                <input
-                  type="text"
-                  value={engine.document?.metadata.author || ''}
-                  onChange={(e) => engine.setDocumentAuthor(e.target.value)}
-                  placeholder="Enter your name"
-                />
-              </div>
-              <div className="account-field">
-                <label>Subject:</label>
-                <input
-                  type="text"
-                  value={engine.document?.metadata.subject || ''}
-                  onChange={(e) => engine.setDocumentSubject(e.target.value)}
-                  placeholder="Document subject"
-                />
-              </div>
-              <div className="account-field">
-                <label>Keywords:</label>
-                <input
-                  type="text"
-                  value={engine.document?.metadata.keywords || ''}
-                  onChange={(e) => engine.setDocumentKeywords(e.target.value)}
-                  placeholder="Document keywords"
-                />
-              </div>
-            </div>
+            )}
           </div>
         )}
 

@@ -20,7 +20,7 @@ const DEFAULT_PREFS: AppPrefs = {
   spellCheck: true,
   showStatusBarHints: true,
   defaultZoom: 100,
-  userName: 'Meet',
+  userName: '',
   dailyWordGoal: 1000,
 };
 

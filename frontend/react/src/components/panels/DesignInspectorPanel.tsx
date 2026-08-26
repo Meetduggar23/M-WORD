@@ -90,7 +90,7 @@ export const DesignInspectorPanel: React.FC = () => {
                   <div className="di-cons-bar">
                     <div
                       className="di-cons-fill"
-                      style={{ width: `${c.percent}%`, background: c.percent >= 90 ? '#16a34a' : c.percent >= 60 ? '#d97706' : '#c42b1c' }}
+                      style={{ width: `${c.percent}%`, background: c.percent >= 90 ? 'var(--color-success)' : c.percent >= 60 ? 'var(--color-warning)' : 'var(--color-error)' }}
                     />
                   </div>
                   <span className="di-cons-pct">{c.percent}%</span>

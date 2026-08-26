@@ -769,7 +769,7 @@ const ChartRenderer: React.FC<{ chart: ChartBlock }> = ({ chart }) => {
           {chart.title.text}
         </div>
       )}
-      <div className="chart-area" style={{ width: chart.width, height: chart.height, margin: '0 auto', position: 'relative', border: '1px solid #ddd', padding: '8px', background: 'white' }}>
+      <div className="chart-area" style={{ width: chart.width, height: chart.height, margin: '0 auto', position: 'relative', border: '1px solid var(--border-color)', padding: '8px', background: '#ffffff' }}>
         {/* Simple bar chart visualization */}
         <svg width={chart.width - 16} height={chart.height - 16}>
           {/* Y axis */}

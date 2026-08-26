@@ -56,7 +56,7 @@
 }
 
 .ai-subtitle.private {
-  color: #16a34a;
+  color: var(--color-success);
 }
 
 .ai-header-actions {

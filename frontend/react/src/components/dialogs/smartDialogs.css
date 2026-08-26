@@ -142,14 +142,14 @@
 }
 
 .sd-btn-danger {
-  color: #c42b1c;
-  border-color: rgba(196, 43, 28, 0.4);
+  color: var(--color-error);
+  border-color: var(--color-error-soft);
 }
 
 .sd-btn-danger:hover:not(:disabled) {
-  background: rgba(196, 43, 28, 0.06);
-  color: #c42b1c;
-  border-color: #c42b1c;
+  background: var(--color-error-soft);
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 /* Section labels inside bodies */
@@ -431,13 +431,13 @@
 }
 
 .json-ok {
-  background: rgba(22, 163, 74, 0.08);
-  color: #16a34a;
+  background: var(--color-success-soft);
+  color: var(--color-success);
 }
 
 .json-error {
-  background: rgba(196, 43, 28, 0.07);
-  color: #c42b1c;
+  background: var(--color-error-soft);
+  color: var(--color-error);
 }
 
 .json-info {
@@ -556,9 +556,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.dt-pass { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
-.dt-warn { background: rgba(217, 119, 6, 0.1); color: #d97706; }
-.dt-error { background: rgba(196, 43, 28, 0.1); color: #c42b1c; }
+.dt-pass { background: var(--color-success-soft); color: var(--color-success); }
+.dt-warn { background: var(--color-warning-soft); color: var(--color-warning); }
+.dt-error { background: var(--color-error-soft); color: var(--color-error); }
 
 .dt-list {
   display: flex;
@@ -585,9 +585,9 @@
   flex-shrink: 0;
 }
 
-.dt-icon.dt-pass { color: #16a34a; }
-.dt-icon.dt-warn { color: #d97706; }
-.dt-icon.dt-error { color: #c42b1c; }
+.dt-icon.dt-pass { color: var(--color-success); }
+.dt-icon.dt-warn { color: var(--color-warning); }
+.dt-icon.dt-error { color: var(--color-error); }
 
 .dt-label {
   font-size: 12px;

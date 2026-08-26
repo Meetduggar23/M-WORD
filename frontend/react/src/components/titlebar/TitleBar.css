@@ -175,7 +175,7 @@
 }
 
 .tb-save-status.unsaved {
-  color: #fbbf24;
+  color: var(--color-warning);
 }
 
 .tb-save-status.saving {
