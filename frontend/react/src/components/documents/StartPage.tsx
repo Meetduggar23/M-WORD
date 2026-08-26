@@ -1,8 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FileText, Briefcase, BarChart3, Mail, Clock, StickyNote,
   FilePlus2, FolderOpen, Upload, LayoutGrid, MoreHorizontal, ArrowRight,
+  ChevronDown, ChevronUp, Keyboard, Command, Settings, CircleHelp,
 } from 'lucide-react';
+import { Logo } from '../common/Logo';
+import packageJson from '../../../package.json';
 import { RecentDoc, formatRelativeTime } from '../../services/storage';
 import { getGreeting } from '../../features/personalization/greeting';
 import './StartPage.css';
@@ -123,8 +127,123 @@ interface StartPageProps {
   onOpenFile: () => void;
   onOpenGenerator: () => void;
   onOpenSettings: () => void;
+  onOpenSettingsPage: () => void;
+  onOpenCommandCenter: () => void;
   onLogin?: () => void;
 }
+
+type FooterAction = { label: string; icon: React.ReactNode; run: () => void };
+
+const FooterLink: React.FC<{ action: FooterAction }> = ({ action }) => (
+  <button type="button" className="start-footer-link" onClick={action.run}>
+    {action.icon}
+    <span>{action.label}</span>
+  </button>
+);
+
+const StartFooter: React.FC<{
+  onOpenTemplate: (template: TemplateDef) => void;
+  onOpenFile: () => void;
+  onOpenGenerator: () => void;
+  onOpenSettings: () => void;
+  onOpenSettingsPage: () => void;
+  onOpenCommandCenter: () => void;
+}> = ({ onOpenTemplate, onOpenFile, onOpenGenerator, onOpenSettings, onOpenSettingsPage, onOpenCommandCenter }) => {
+  const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [mobileGroup, setMobileGroup] = useState<string | null>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuFocus, setMenuFocus] = useState(0);
+
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const shortcuts = () => onOpenSettings();
+  const quickActions: FooterAction[] = [
+    { label: 'New document', icon: <FilePlus2 size={14} />, run: () => onOpenTemplate(TEMPLATES[0]) },
+    { label: 'Open', icon: <FolderOpen size={14} />, run: onOpenFile },
+    { label: 'Templates', icon: <LayoutGrid size={14} />, run: () => scrollTo('start-templates') },
+    { label: 'Import', icon: <Upload size={14} />, run: onOpenGenerator },
+  ];
+  const groups: { label: string; items: FooterAction[] }[] = [
+    { label: 'Product', items: [
+      { label: 'Home', icon: <Logo size={14} />, run: () => scrollTo('start-home') },
+      quickActions[0],
+      quickActions[2],
+      { label: 'Recent documents', icon: <Clock size={14} />, run: () => scrollTo('start-recent') },
+    ] },
+    { label: 'Tools', items: [
+      { label: 'Keyboard shortcuts', icon: <Keyboard size={14} />, run: shortcuts },
+      { label: 'Command center', icon: <Command size={14} />, run: onOpenCommandCenter },
+    ] },
+    { label: 'Support', items: [
+      { label: 'Help & shortcuts', icon: <CircleHelp size={14} />, run: shortcuts },
+    ] },
+    { label: 'App', items: [
+      { label: 'Settings', icon: <Settings size={14} />, run: onOpenSettingsPage },
+    ] },
+  ];
+  const featureItems = groups.flatMap((group) => group.items);
+
+  useEffect(() => {
+    if (!featuresOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!featuresRef.current?.contains(target) && !menuRef.current?.contains(target)) setFeaturesOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setFeaturesOpen(false); return; }
+      if (event.key === 'ArrowDown') { event.preventDefault(); setMenuFocus((i) => Math.min(featureItems.length - 1, i + 1)); }
+      if (event.key === 'ArrowUp') { event.preventDefault(); setMenuFocus((i) => Math.max(0, i - 1)); }
+      if (event.key === 'Home') { event.preventDefault(); setMenuFocus(0); }
+      if (event.key === 'End') { event.preventDefault(); setMenuFocus(featureItems.length - 1); }
+      if (event.key === 'Enter') { event.preventDefault(); featureItems[menuFocus]?.run(); setFeaturesOpen(false); }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('pointerdown', onPointerDown); document.removeEventListener('keydown', onKeyDown); };
+  }, [featuresOpen, featureItems, menuFocus]);
+
+  const toggleFeatures = () => { setFeaturesOpen((open) => !open); setMenuFocus(0); };
+  const menu = featuresOpen && createPortal(
+    <div ref={menuRef} className="start-features-menu" role="menu" aria-label="All features">
+      <div className="start-features-heading">All features</div>
+      {featureItems.map((item, index) => (
+        <button key={`${item.label}-${index}`} type="button" role="menuitem" tabIndex={index === menuFocus ? 0 : -1}
+          className={`start-feature-item${index === menuFocus ? ' is-focused' : ''}`} onClick={() => { item.run(); setFeaturesOpen(false); }}
+          onMouseEnter={() => setMenuFocus(index)}>
+          {item.icon}<span>{item.label}</span>
+        </button>
+      ))}
+    </div>, document.body,
+  );
+
+  return (
+    <footer className="start-footer">
+      <div className="start-footer-top">
+        <div className="start-footer-brand"><Logo size={24} /><div><strong>WORD</strong><span>Professional document editor</span></div></div>
+        <div className="start-footer-top-actions">
+          <FooterLink action={{ label: 'Shortcuts', icon: <Keyboard size={14} />, run: shortcuts }} />
+          <FooterLink action={{ label: 'Command center', icon: <Command size={14} />, run: onOpenCommandCenter }} />
+          <FooterLink action={{ label: 'Settings', icon: <Settings size={14} />, run: onOpenSettingsPage }} />
+        </div>
+      </div>
+      <div className="start-footer-body">
+        <div className="start-footer-quick"><span className="start-footer-label">Quick actions</span>{quickActions.map((action) => <FooterLink key={action.label} action={action} />)}</div>
+        <nav className="start-footer-nav" aria-label="Home navigation">
+          {groups.map((group) => <div key={group.label} className="start-footer-group">
+            <button type="button" className="start-footer-group-toggle" aria-expanded={mobileGroup === group.label} onClick={() => setMobileGroup((current) => current === group.label ? null : group.label)}>
+              {group.label}{mobileGroup === group.label ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            <div className={`start-footer-group-items${mobileGroup === group.label ? ' is-open' : ''}`}>{group.items.map((item) => <FooterLink key={item.label} action={item} />)}</div>
+          </div>)}
+        </nav>
+      </div>
+      <div className="start-footer-bottom">
+        <span>© 2026 WORD</span>
+        <div className="start-footer-bottom-actions"><div ref={featuresRef} className="start-features-wrap"><button type="button" className="start-features-trigger" aria-expanded={featuresOpen} aria-haspopup="menu" onClick={toggleFeatures}>All features {featuresOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>{menu}</div><span>Version {packageJson.version}</span></div>
+      </div>
+    </footer>
+  );
+};
 
 /** Word-style file type icon color */
 function fileTypeColor(title: string): string {
@@ -154,7 +273,7 @@ const TIPS = [
 ];
 
 export const StartPage: React.FC<StartPageProps> = ({
-  recents, userName, isAuthenticated, onOpenTemplate, onOpenRecent, onOpenFile, onOpenGenerator, onOpenSettings, onLogin,
+  recents, userName, isAuthenticated, onOpenTemplate, onOpenRecent, onOpenFile, onOpenGenerator, onOpenSettings, onOpenSettingsPage, onOpenCommandCenter, onLogin,
 }) => {
   const hour = new Date().getHours();
   const recentDocs = recents.map((d) => ({ title: d.title, openedAt: d.openedAt }));
@@ -170,7 +289,7 @@ export const StartPage: React.FC<StartPageProps> = ({
   const tagline = isAuthenticated ? authTagline : 'Sign in to get started with your documents.';
 
   return (
-    <div className="start-page">
+    <div className="start-page" id="start-home">
       <div className="start-scroll">
         <div className="start-layout">
           <div className="start-main">
@@ -206,7 +325,7 @@ export const StartPage: React.FC<StartPageProps> = ({
             </div>
 
             {/* ── Create New: template cards ── */}
-            <section className="start-section" aria-label="Create new">
+            <section className="start-section" id="start-templates" aria-label="Create new">
               <h2 className="start-section-title">Create New</h2>
 
               <div className="start-template-row">
@@ -237,7 +356,7 @@ export const StartPage: React.FC<StartPageProps> = ({
             </section>
 
             {/* ── Recent Documents ── */}
-            <section className="start-section" aria-label="Recent documents">
+            <section className="start-section" id="start-recent" aria-label="Recent documents">
               <div className="start-section-header">
                 <h2 className="start-section-title">
                   <Clock size={16} strokeWidth={2} />
@@ -308,16 +427,14 @@ export const StartPage: React.FC<StartPageProps> = ({
               )}
             </section>
 
-            <footer className="start-footer">
-              <div className="sf-left">
-                <span className="sf-brand">WORD</span>
-                <span className="sf-sep" />
-                <span className="sf-copy">Made by Meet Duggar</span>
-              </div>
-              <div className="sf-right">
-                <span className="sf-version">v1.0.0</span>
-              </div>
-            </footer>
+            <StartFooter
+              onOpenTemplate={onOpenTemplate}
+              onOpenFile={onOpenFile}
+              onOpenGenerator={onOpenGenerator}
+              onOpenSettings={onOpenSettings}
+              onOpenSettingsPage={onOpenSettingsPage}
+              onOpenCommandCenter={onOpenCommandCenter}
+            />
           </div>
 
           {/* ── Right sidebar: Tips & Shortcuts ── */}

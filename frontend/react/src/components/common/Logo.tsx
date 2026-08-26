@@ -11,7 +11,7 @@ interface LogoProps {
  */
 export const Logo: React.FC<LogoProps> = ({ size = 20, className }) => (
   <img
-    src="/logo2.png"
+    src="/newlogo.png"
     alt="WORD logo"
     width={size}
     height={size}

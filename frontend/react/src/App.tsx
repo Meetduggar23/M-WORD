@@ -533,6 +533,8 @@ const AppShell: React.FC = () => {
             onOpenFile={() => engine.openDocument()}
             onOpenGenerator={() => ui.openDialog('generator')}
             onOpenSettings={() => ui.openDialogWith('settings', { initialTab: 'shortcuts' })}
+            onOpenSettingsPage={() => ui.openDialog('settings')}
+            onOpenCommandCenter={() => ui.openDialog('commandPalette')}
           />
         </div>
       ) : (

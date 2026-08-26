@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, ReactNode, CSSProperties } from 'react';
+import React, { useEffect, useRef, useState, useCallback, ReactNode, CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import './primitives.css';
 
@@ -149,7 +150,7 @@ export const RibCombo: React.FC<{
   </span>
 );
 
-/* ---------- Dropdown menu ---------- */
+/* ---------- Dropdown menu (Portal-based, floats outside ribbon) ---------- */
 
 export const RibDropdown: React.FC<{
   trigger: ReactNode;
@@ -158,12 +159,35 @@ export const RibDropdown: React.FC<{
   align?: 'left' | 'right';
 }> = ({ trigger, children, width = 190, align = 'left' }) => {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
+  const close = useCallback(() => setOpen(false), []);
+
+  // Calculate position relative to viewport when opening
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const menuTop = rect.bottom + 4;
+    let menuLeft = align === 'right' ? rect.right - width : rect.left;
+
+    // Clamp to viewport so it doesn't go off-screen
+    menuLeft = Math.max(8, Math.min(menuLeft, window.innerWidth - width - 8));
+    const menuTopClamped = Math.min(menuTop, window.innerHeight - 340);
+
+    setPos({ top: Math.max(0, menuTopClamped), left: menuLeft });
+  }, [open, width, align]);
+
+  // Click outside + Escape
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      if (
+        menuRef.current?.contains(e.target as Node) ||
+        triggerRef.current?.contains(e.target as Node)
+      ) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -171,17 +195,35 @@ export const RibDropdown: React.FC<{
         setOpen(false);
       }
     };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
+    // Also reposition on scroll/resize
+    const onReposition = () => {
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setPos((prev) => ({
+          ...prev,
+          left: Math.max(8, Math.min(
+            align === 'right' ? rect.right - width : rect.left,
+            window.innerWidth - width - 8,
+          )),
+        }));
+      }
     };
-  }, [open]);
+    document.addEventListener('mousedown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('scroll', onReposition, true);
+    window.addEventListener('resize', onReposition);
+    return () => {
+      document.removeEventListener('mousedown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('scroll', onReposition, true);
+      window.removeEventListener('resize', onReposition);
+    };
+  }, [open, width, align]);
 
   return (
-    <div className="rib-dd" ref={rootRef}>
+    <div className="rib-dd">
       <span
+        ref={triggerRef}
         role="button"
         tabIndex={0}
         aria-haspopup="menu"
@@ -197,14 +239,22 @@ export const RibDropdown: React.FC<{
       >
         {trigger}
       </span>
-      {open && (
+      {open && createPortal(
         <div
+          ref={menuRef}
           className="rib-dd-menu"
           role="menu"
-          style={{ width, [align]: 0 } as CSSProperties}
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            width,
+            zIndex: 9000,
+          }}
         >
-          {children(() => setOpen(false))}
-        </div>
+          {children(close)}
+        </div>,
+        document.body,
       )}
     </div>
   );

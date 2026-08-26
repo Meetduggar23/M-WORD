@@ -254,6 +254,7 @@
 .rib-dd {
   position: relative;
   display: inline-flex;
+  /* Keep trigger in normal flow — menu floats via portal */
 }
 
 .rib-dd-trigger {
@@ -267,9 +268,8 @@
 }
 
 .rib-dd-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  z-index: 500;
+  position: fixed;
+  z-index: 9000;
   padding: 4px;
   background: var(--surface-raised);
   border: 1px solid var(--border-color);
