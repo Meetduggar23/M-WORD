@@ -1,7 +1,7 @@
 # WORD — Professional Document Editor
 
 <p align="center">
-  <img src="frontend/react/public/favicon.svg" width="96" alt="WORD logo" />
+  <img src="frontend/react/public/newlogo.png" width="96" alt="WORD logo" />
 </p>
 
 **WORD** is a premium, modern word processing and document editing application inspired by Microsoft Word. It pairs a polished Fluent-inspired UI with a multi-language architecture built for performance, security, and a smooth user experience.
