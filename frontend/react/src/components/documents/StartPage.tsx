@@ -308,7 +308,7 @@ export const StartPage: React.FC<StartPageProps> = ({
               )}
             </section>
 
-            <footer className="start-footer">WORD — Professional Document Editor</footer>
+            <footer className="start-footer">Made by Meet Duggar</footer>
           </div>
 
           {/* ── Right sidebar: Tips & Shortcuts ── */}
