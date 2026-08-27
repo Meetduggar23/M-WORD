@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/react/public/newlogo.png" width="108" alt="WORD logo" />
+  <img src="frontend/react/public/newlogo.png" width="98" alt="WORD logo" />
 </p>
 
 <h1 align="center">WORD</h1>
